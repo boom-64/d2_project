@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "ruff": "^1.5.4",
-    "yaml-language-server": "^1.18.0"
-  }
-}
