@@ -10,7 +10,7 @@ import requests
 
 import utils
 from schemas import URL, MD5Checksum, BungieResponseData
-from errors import BungieAPIError, DownloadError
+from errors import DownloadError
 
 def request_bungie(url: URL, key: str | None = None) -> BungieResponseData:
     """
@@ -43,45 +43,12 @@ def request_bungie(url: URL, key: str | None = None) -> BungieResponseData:
         )
     
     try: 
-        return response.json()
+        return BungieResponseData(response.json())
     
     except JSONDecodeError as e:
         raise ValueError(
             f"Failed to parse json response from {url}: {e}"
         ) from e
-
-def handle_bungie_errs(response: BungieResponseData) -> None:
-    """
-    Function to handle errors returned by requests to Bungie.
-
-    This function takes a custom TypedDict BungieResponseData and first
-    determines whether the ErrorCode returned by Bungie is a known entity
-    related to the passed API key. If it is, a PermissionError is raised 
-    containing Bungie's returned message. If it is not, a custom 
-    BungieAPIError is raised containing Bungie's message and ErrorCode.
-    
-    Args:
-        response (BungieResponseData): Custom TypedDict containing Bungie's
-            response as a dictionary.
-
-    Raises:
-        PermissionError: If a known error with the API key occurs.
-        BungieAPIError: If an unknown error occurs.
-
-    Returns:
-        None.
-    """
-    if (err_code := response.get('ErrorCode')) != 1:
-        if err_code in (2101, 2102):
-            raise PermissionError(
-                f"Issue with the API key. Message from Bungie: "
-                f"{response.get('Message')}"
-            )
-        
-        raise BungieAPIError(
-            f"Unexpected Bungie API error. Message: {response.get('Message')}",
-            error_code=err_code
-        )
 
 def extract_mf_path(response: BungieResponseData, lang: str) -> str:
     """
@@ -104,15 +71,10 @@ def extract_mf_path(response: BungieResponseData, lang: str) -> str:
         str: Remote relative manifest path.
     """
     try:
-        return response['Response']['mobileWorldContentPaths'][lang]
+        return response.response['mobileWorldContentPaths'][lang]
 
     except KeyError as e:
         match e.args[0]:
-            case 'Response':
-                raise KeyError(
-                    "Missing top-level 'Response' key in Bungie API response"
-                ) from e
-
             case 'mobileWorldContentPaths':
                 raise KeyError(
                     "Missing 'mobileWorldContentPaths' key in Bungie API "
@@ -120,7 +82,7 @@ def extract_mf_path(response: BungieResponseData, lang: str) -> str:
                 ) from e
                 
             case missing_lang: # Catches all remaining KeyErrors
-                available = response['Response']['mobileWorldContentPaths'].keys()
+                available = response.response['Response']['mobileWorldContentPaths'].keys()
 
                 raise ValueError(
                     f"Language '{missing_lang}' currently unsupported. "
@@ -151,8 +113,6 @@ def fetch_remote_mf_path(
     """
     response = request_bungie(url=url, key=key)
 
-    handle_bungie_errs(response)
-    
     return extract_mf_path(response=response, lang=lang)
 
 def validate_remote_mf_dir(

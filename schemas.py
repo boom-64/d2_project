@@ -2,8 +2,10 @@ from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse, ParseResult
 import validators
 import re
+from json.decoder import JSONDecodeError
 import logging
-from typing import Any, TypedDict
+from requests import Response
+from typing import Any
 
 @dataclass(frozen=True)
 class MD5Checksum:
@@ -115,30 +117,103 @@ class URL:
         for key, val in attrs.items(): 
             object.__setattr__(self, key, val)
 
-class BungieResponseData(TypedDict):
+@dataclass(frozen=True, init=False)
+class BungieResponseData:
     """
-    TypedDict representing the structure of a typical Bungie API response.
+    Custom exception for errors returned by the Bungie API.
 
-    This dictionary is used for type hinting structured JSON responses 
-    returned by Bungie API GET requests. Bungie's responses follow a 
-    common schema that includes metadata about the request status, 
-    throttling, and the actual response payload.
+    This exception is raised when an error occurs while interacting with 
+    the Bungie API. It includes an optional error code returned by the 
+    API to help identify the issue.
 
-    Keys:
-        ErrorCode (int): Numeric status code indicating success or failure,
-            and indicating the type of failure.
-        ThrottleSeconds (int): Number of seconds clients should wait before 
-            retrying.
-        ErrorStatus (str): Short string description of the error or status.
-        Message (str): Human-readable message about the response.
-        MessageData (dict[str, Any]): Additional data or details about the 
-            message.
-        Response (dict[str, Any]): The main payload of the response; 
-            structure varies by endpoint.
-    """
-    ErrorCode: int
-    ThrottleSeconds: int
-    ErrorStatus: str
-    Message: str
-    MessageData: dict[str, Any]
-    Response: dict[str, Any]
+    Attributes:
+        error_code (int | None): Optional error code provided by the Bungie 
+            API.
+
+    Args:
+        message (str): Human-readable description of the error.
+        error_code (int | None, optional): Numeric code representing the 
+            error, if available.
+    """ 
+    _attrs_conversion: dict[str, str] = {
+        'error_code': 'ErrorCode',
+        'throttle_seconds': 'ThrottleSeconds',
+        'error_status': 'ErrorStatus',
+        'message': 'Message',
+        'message_data': 'MessageData',
+        'response': 'Response'
+    }
+
+    error_code: int = field(init=False)
+    throttle_seconds: int = field(init=False)
+    error_status: str = field(init=False)
+    message: str = field(init=False)
+    message_data: dict[str, Any] = field(init=False)
+    response: dict[str, Any] = field(init=False)
+
+    def __init__(self, raw_data: Response) -> None:
+        """
+        Initializes BungieResponseData by parsing and validating a requests.Response object.
+
+        Args:
+            raw_data (Response): The raw response object returned by `requests.get()`.
+
+        Raises:
+            ValueError: If the JSON decoding fails, required fields are missing,
+                or unexpected fields are present in the response.
+        """
+        try:
+            json_data = raw_data.json()
+            attrs = {k: json_data[v] for k, v in self._attrs_conversion.items()}
+
+            if (diff := set(json_data) - set(self._attrs_conversion.values())):
+                raise ValueError(
+                    f"Unexpected components in response: " +
+                    ", ".join(f"{k}={json_data[k]!r}" for k in diff)
+                )
+
+        except JSONDecodeError as e:
+            raise ValueError(
+                f"Failed to parse json response: {e}"
+            ) from e
+
+        except KeyError as e:
+            raise ValueError(f"Missing required field in response: {e}.")
+
+        for key, val in attrs.items():
+            object.__setattr__(self, key, val)
+
+        self._validate()
+
+    def _validate(self) -> None:
+        """
+        Validates the error_code to determine if the response indicates success.
+
+        Raises:
+            PermissionError: If the error code indicates an API key issue.
+            APIError: For other unexpected Bungie API errors.
+        """
+        if self.error_code != 1:
+            if self.error_code in (2101, 2102):
+                raise PermissionError(f"Issue with the API key. Error code: {self.error_code}, error message: '{self.message}'.")
+            raise self.APIError(msg="Unexpected Bungie API error.", response_data=self)
+
+    class APIError(Exception):
+        """
+        Exception raised for errors returned by the Bungie API.
+
+        This exception is intended to represent non-permission-related errors
+        in Bungie's API response.
+        """ 
+        def __init__(self, msg: str, response_data: 'BungieResponseData | None' = None) -> None:
+            """
+            Initializes the APIError exception.
+
+            Args:
+                msg (str): Description of the error.
+                response_data (BungieResponseData | None, optional): The
+                    BungieResponseData instance related to this error.
+            """
+            if response_data:
+                msg = f"{msg.rstrip()} Response data: '{response_data}'."
+            super().__init__(msg)

@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import mf_utils
-import utils
 from schemas import URL
 
 api_key = 'd4705221d56b4040b8c5c6b4ebd58757'
