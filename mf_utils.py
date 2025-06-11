@@ -4,41 +4,13 @@ import errno
 import re
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any, TypedDict, IO
+from typing import IO
 
 import requests
 
 import utils
-from schemas import URL
+from schemas import URL, MD5Checksum, BungieResponseData
 from errors import BungieAPIError, DownloadError
-
-class BungieResponseData(TypedDict):
-    """
-    TypedDict representing the structure of a typical Bungie API response.
-
-    This dictionary is used for type hinting structured JSON responses 
-    returned by Bungie API GET requests. Bungie's responses follow a 
-    common schema that includes metadata about the request status, 
-    throttling, and the actual response payload.
-
-    Keys:
-        ErrorCode (int): Numeric status code indicating success or failure,
-            and indicating the type of failure.
-        ThrottleSeconds (int): Number of seconds clients should wait before 
-            retrying.
-        ErrorStatus (str): Short string description of the error or status.
-        Message (str): Human-readable message about the response.
-        MessageData (dict[str, Any]): Additional data or details about the 
-            message.
-        Response (dict[str, Any]): The main payload of the response; 
-            structure varies by endpoint.
-    """
-    ErrorCode: int
-    ThrottleSeconds: int
-    ErrorStatus: str
-    Message: str
-    MessageData: dict[str, Any]
-    Response: dict[str, Any]
 
 def request_bungie(url: URL, key: str | None = None) -> BungieResponseData:
     """
@@ -387,7 +359,7 @@ def dl_mf_zip(zip_path: str | Path, url: URL) -> None:
                 if e.errno not in (errno.ENOENT, errno.EPERM, errno.EACCES):
                     raise
 
-def extract_expected_md5(mf: Path) -> str:
+def extract_expected_md5(mf: Path) -> MD5Checksum:
     """
     Extract the expected MD5 hash from the manifest file name.
 
@@ -400,12 +372,8 @@ def extract_expected_md5(mf: Path) -> str:
         str: The expected MD5 hash string extracted from the filename.
     """
     validate_mf_name(mf.name)
-
-    md5 = mf.stem.split('_')[-1] # Uses Bungie's file naming conventions
     
-    # MD5 checksum's format already checked with validate_mf_name()
-
-    return md5
+    return MD5Checksum(mf.stem.split('_')[-1])
 
 def fetch_mf_update_path(
     key: str, 
@@ -538,11 +506,6 @@ def update_manifest(
             f"No manifest file found in {mf_dir_path.resolve()}."
         )
     
-    expected_md5 = extract_expected_md5(mf=new_mf_local_path)
-    actual_md5 = utils.calc_file_md5(path=new_mf_local_path)
-
-    utils.verify_md5_match(
-        actual=actual_md5, 
-        expected=expected_md5, 
-        strict=strict 
-    )
+    expected_md5: MD5Checksum = extract_expected_md5(mf=new_mf_local_path)
+    computed_md5: MD5Checksum = utils.calc_file_md5(path=new_mf_local_path)
+    computed_md5.assert_equals(expected=expected_md5, strict=strict)

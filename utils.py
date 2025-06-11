@@ -5,11 +5,7 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
-from urllib.parse import urljoin
 
-import validators
-
-from errors import ChecksumMismatchError 
 from schemas import MD5Checksum
 
 logging.basicConfig(
@@ -73,7 +69,7 @@ def mv_item(
     
     shutil.move(str(src), str(target_path))
 
-def calc_file_md5(path: Path) -> str:
+def calc_file_md5(path: Path) -> MD5Checksum:
     """
     Calculate the MD5 hash of the given file.
 
@@ -81,7 +77,7 @@ def calc_file_md5(path: Path) -> str:
         path (str | Path): Path to the file.
 
     Returns:
-        str: The hexadecimal MD5 hash of the file contents.
+        MD5Checksum: The hexadecimal MD5 hash of the file contents.
 
     Raises:
         ValueError: If 'path' does not refer to a file.
@@ -100,65 +96,7 @@ def calc_file_md5(path: Path) -> str:
             hasher.update(chunk)
 
     # Return 'hexdigest()' of 'hasher' MD5 hash object
-    return hasher.hexdigest()
-
-def validate_md5(val: str, name: str | None = None) -> None:
-    """
-    Validates that the provided string is a valid MD5 checksum.
-
-    An MD5 checksum is expected to be a 32-character hexadecimal string. If 
-    the input does not meet this format, a ValueError is raised.
-
-    Args:
-        val (str): The string to validate as an MD5 checksum.
-        name (Optional[str]): A label used in the error message to indicate
-            the source or purpose of the checksum being validated.
-
-    Raises:
-        ValueError: If the input is not a valid 32-character hexadecimal MD5 
-            checksum.
-    """
-    # Check 'val' is of MD5 checksum format (double-length hex string)
-    if not re.fullmatch(r'[0-9a-fA-F]{32}', val):
-        raise ValueError(f"{name} value '{val}' is not a valid MD5 checksum")
-
-def verify_md5_match(
-    actual: str, 
-    expected: str, 
-    strict: bool = True
-) -> None:
-    """
-    Verifies that an MD5 checksum matches the expected value.
-
-    Args:
-        actual (str): The actual MD5 checksum to verify.
-        expected (str): The expected MD5 checksum to compare against.
-        strict (bool): If False, do not raise an error on mismatch; 
-            return instead (default: True).
-
-    Returns:
-        None. 
-    
-    Raises:
-        ChecksumMismatchError: If the checksums do not match and allow_fail 
-        is False.
-    """
-    validate_md5(val=actual, name='calculated actual checksum')
-    validate_md5(val=expected, name='extracted expected checksum')
-
-    # Return if 'actual'=='expected'
-    if actual.lower() == expected.lower():
-        return
-
-    # Log if 'allow_fail==True'
-    if not strict:
-        logging.warning(
-            f"MD5 mismatch ignored, expected {expected}, got {actual}"
-        )
-        return
-
-    # Raise if not returned yet
-    raise ChecksumMismatchError(actual=actual, expected=expected)
+    return MD5Checksum(hasher.hexdigest())
 
 def add_suffix(path: Path, suffix: str, overwrite: bool = False) -> Path:
     """

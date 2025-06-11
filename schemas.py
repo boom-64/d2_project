@@ -1,9 +1,63 @@
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse, ParseResult
 import validators
+import re
+import logging
+from typing import Any, TypedDict
 
-class MD5Checksum(str):
-    pass
+@dataclass(frozen=True)
+class MD5Checksum:
+    val: str
+
+    def __post_init__(self):
+        val = self.val.lower()
+        if not re.fullmatch(r'^[a-f0-9]{32}$', val):
+            raise ValueError(f"Invalid MD5 checksum: {self.val}")
+        object.__setattr__(self, 'val', val)
+
+
+    class MismatchError(Exception):
+        """
+        Custom exception for checksum mismatches.
+
+        This exception is raised when a calculated checksum does not match 
+        the expected checksum. It includes both the expected and actual 
+        checksums.
+
+        Attributes:
+            expected (MD5Checksum): Expected checksum.
+            computed (MD5Checksum): Actual checksum calculated.
+        Args:
+            expected (MD5Checksum): The expected checksum value.
+            computed (MD5Checksum): The actual checksum that was calculated.
+        """
+        expected: 'MD5Checksum'
+        computed: 'MD5Checksum'
+        def __init__(
+            self, 
+            expected: 'MD5Checksum', 
+            computed: 'MD5Checksum'
+        ) -> None:
+            self.expected = expected
+            self.computed = computed
+
+            message = (
+                f"Checksum mismatch: expected {self.expected.val}, got "
+                f"{self.computed.val}"
+            )
+            super().__init__(message)
+
+    def assert_equals(self, *, expected: 'MD5Checksum', strict: bool=False):
+        if not isinstance(expected, MD5Checksum):
+            raise TypeError(
+                f"Cannot compare MD5Checksum with '{expected}' of type "
+                f"'{type(expected)}'."
+            )
+        if self == expected:
+            return
+        if strict:
+            raise self.MismatchError(computed=self, expected=expected)
+        logging.warning(f"Checksum mismatch: {self.val} != {expected.val}.")
 
 @dataclass(init=False, frozen=True)
 class URL:
@@ -60,3 +114,31 @@ class URL:
 
         for key, val in attrs.items(): 
             object.__setattr__(self, key, val)
+
+class BungieResponseData(TypedDict):
+    """
+    TypedDict representing the structure of a typical Bungie API response.
+
+    This dictionary is used for type hinting structured JSON responses 
+    returned by Bungie API GET requests. Bungie's responses follow a 
+    common schema that includes metadata about the request status, 
+    throttling, and the actual response payload.
+
+    Keys:
+        ErrorCode (int): Numeric status code indicating success or failure,
+            and indicating the type of failure.
+        ThrottleSeconds (int): Number of seconds clients should wait before 
+            retrying.
+        ErrorStatus (str): Short string description of the error or status.
+        Message (str): Human-readable message about the response.
+        MessageData (dict[str, Any]): Additional data or details about the 
+            message.
+        Response (dict[str, Any]): The main payload of the response; 
+            structure varies by endpoint.
+    """
+    ErrorCode: int
+    ThrottleSeconds: int
+    ErrorStatus: str
+    Message: str
+    MessageData: dict[str, Any]
+    Response: dict[str, Any]
