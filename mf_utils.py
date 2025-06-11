@@ -2,7 +2,6 @@ import tempfile
 import shutil
 import errno
 import re
-from json import JSONDecodeError
 from pathlib import Path
 from typing import IO
 
@@ -42,13 +41,8 @@ def request_bungie(url: URL, key: str | None = None) -> BungieResponseData:
             f"{response.reason}"
         )
     
-    try: 
-        return BungieResponseData(response.json())
+    return BungieResponseData(response)
     
-    except JSONDecodeError as e:
-        raise ValueError(
-            f"Failed to parse json response from {url}: {e}"
-        ) from e
 
 def extract_mf_path(response: BungieResponseData, lang: str) -> str:
     """

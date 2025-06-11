@@ -6,6 +6,7 @@ from json.decoder import JSONDecodeError
 import logging
 from requests import Response
 from typing import Any
+from types import MappingProxyType
 
 @dataclass(frozen=True)
 class MD5Checksum:
@@ -135,14 +136,14 @@ class BungieResponseData:
         error_code (int | None, optional): Numeric code representing the 
             error, if available.
     """ 
-    _attrs_conversion: dict[str, str] = {
+    _attrs_conversion = MappingProxyType({
         'error_code': 'ErrorCode',
         'throttle_seconds': 'ThrottleSeconds',
         'error_status': 'ErrorStatus',
         'message': 'Message',
         'message_data': 'MessageData',
         'response': 'Response'
-    }
+    })
 
     error_code: int = field(init=False)
     throttle_seconds: int = field(init=False)
