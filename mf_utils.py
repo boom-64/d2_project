@@ -7,11 +7,9 @@ from typing import IO
 
 import requests
 
-import utils
+import utils, suffix_utils
 from schemas import URL, MD5Checksum, BungieResponseData
 from errors import DownloadError
-
-suffix_manipulator = utils.SuffixManip()
 
 def request_bungie(url: URL, key: str | None = None) -> BungieResponseData:
     """
@@ -432,7 +430,7 @@ def update_manifest(
     )
 
     if current_mf_path:
-        current_mf_path = suffix_manipulator.append(
+        current_mf_path = suffix_utils.append(
             path=current_mf_path, 
             suffix=bak_ext,
             overwrite=True
@@ -451,7 +449,7 @@ def update_manifest(
             utils.rm_sibling_files(
                 files_to_keep={current_mf_path.resolve()}
             )
-            suffix_manipulator.rm_final(path=current_mf_path)
+            suffix_utils.rm_final(path=current_mf_path)
         raise
     new_mf_local_path = fetch_current_mf_path(
         mf_dir_path=mf_dir_path, 

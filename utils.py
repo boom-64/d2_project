@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import re
 import shutil
 import tempfile
 import zipfile
@@ -97,51 +96,6 @@ def calc_file_md5(path: Path) -> MD5Checksum:
 
     # Return 'hexdigest()' of 'hasher' MD5 hash object
     return MD5Checksum(hasher.hexdigest())
-
-class SuffixManip:
-
-    def append(self, *, path: Path, suffix: str, overwrite: bool = False) -> Path:
-        self._validate_file(path)
-
-        suffix = self._validate_suffix(suffix=suffix)
-
-        new_path: Path = path.with_name(path.name + suffix)
-
-        return self._update(old_path=path, new_path=new_path, overwrite=overwrite)
-
-    def rm_final(self, *, path: Path, overwrite: bool = False) -> Path:
-        self._validate_file(path)
-
-        if not path.suffix:
-            raise ValueError(f"File '{path}' has no suffix to be removed.")
-
-        new_path: Path = path.with_suffix('')
-
-        return self._update(old_path=path, new_path=new_path, overwrite=overwrite)
-    
-    def _validate_file(self, path: Path) -> None:
-        if not path.is_file():
-            raise ValueError(f"Passed 'path={path}' must refer to file.")
-
-    def _validate_suffix(self, suffix: str) -> str:
-        if not isinstance(suffix, str):
-            raise ValueError("Must pass 'suffix'")
-
-        if not suffix.startswith('.'):
-            suffix = '.' + suffix
-
-        if not re.fullmatch(r'\.[A-Za-z0-9._-]+', suffix):
-            raise ValueError(f"New suffix '{suffix}' not a compatible suffix.")
-    
-        return suffix
-
-    def _update(self, old_path: Path, new_path: Path, overwrite: bool) -> Path:
-        if new_path.exists() and not overwrite:
-            raise FileExistsError(f"File with path '{new_path}' already exists.")
- 
-        old_path.replace(new_path)
-        
-        return new_path
 
 def validate_expected_entry_count(
     entry_type: str, 
