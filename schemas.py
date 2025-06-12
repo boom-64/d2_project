@@ -7,17 +7,20 @@ import logging
 from requests import Response
 from typing import Any
 from types import MappingProxyType
+from pathlib import Path
+import hashlib
 
 @dataclass(frozen=True)
 class MD5Checksum:
     val: str
 
-    def __post_init__(self):
-        val = self.val.lower()
-        if not re.fullmatch(r'^[a-f0-9]{32}$', val):
-            raise ValueError(f"Invalid MD5 checksum: {self.val}")
-        object.__setattr__(self, 'val', val)
+    def __post_init__(self) -> None:
+        valildated: str = self.val.lower()
 
+        if not re.fullmatch(r'^[a-f0-9]{32}$', valildated):
+            raise ValueError(f"Invalid MD5 checksum: {self.val}")
+
+        object.__setattr__(self, 'val', valildated)
 
     class MismatchError(Exception):
         """
@@ -36,6 +39,7 @@ class MD5Checksum:
         """
         expected: 'MD5Checksum'
         computed: 'MD5Checksum'
+
         def __init__(
             self, 
             expected: 'MD5Checksum', 
@@ -44,11 +48,10 @@ class MD5Checksum:
             self.expected = expected
             self.computed = computed
 
-            message = (
+            super().__init__(
                 f"Checksum mismatch: expected {self.expected.val}, got "
                 f"{self.computed.val}"
             )
-            super().__init__(message)
 
     def assert_equals(self, *, expected: 'MD5Checksum', strict: bool=False):
         if not isinstance(expected, MD5Checksum):
@@ -62,61 +65,126 @@ class MD5Checksum:
             raise self.MismatchError(computed=self, expected=expected)
         logging.warning(f"Checksum mismatch: {self.val} != {expected.val}.")
 
-@dataclass(init=False, frozen=True)
+    @classmethod
+    def calc(cls, path: Path) -> 'MD5Checksum':
+        """
+        Calculate the MD5 hash of the given file.
+
+        Args:
+            path (Path): Path to the file.
+
+        Returns:
+            MD5Checksum: The hexadecimal MD5 hash of the file contents.
+
+        Raises:
+            ValueError: If 'path' does not refer to a file.
+        """
+        if not path.is_file():
+            raise ValueError(
+                f"Provided path '{path}' does not refer to a file."
+            )
+
+        # Assign 'hasher' - an MD5 hash object.
+        hasher = hashlib.md5()
+    
+        with path.open('rb') as f:
+            # Update 'hasher' with each 8KB chunk
+            for chunk in iter(lambda: f.read(8192), b''):
+                hasher.update(chunk)
+
+        # Return 'hexdigest()' of 'hasher' MD5 hash object
+        return cls(hasher.hexdigest())
+
+@dataclass(frozen=True)
 class URL:
     """
-    A class representing a URL with its base URL and path components.
+    Represents a URL with its base URL and path components.
 
     This class parses the provided URL into its base URL and path 
-    components. It also allows for reconstruction of the full URL from these 
+    components. It also allows reconstruction of the full URL from these 
     components.
 
     Attributes:
         url (str): The full URL, including the base URL and path.
         base_url (str): The base URL, consisting of the scheme (e.g., 
             'https') and netloc (e.g., 'example.com').
-        path (str | None): The path component of the URL. Defaults to an 
-            empty string if not provided.
+        path (str): The path component of the URL. Defaults to an empty 
+            string if not provided.
 
     Methods:
-        __init__(url, path=''):
-            Initializes a URL object with the given URL and optional path.
-            The path is appended to the parsed base URL to form the full 
-            URL.
+        from_full_url(full_url: str) -> 'URL':
+            Creates a URL instance from a full URL string.
 
-    Args:
-        url (str): The full URL to be parsed and validated. Must be a valid 
-            URL.
-        path (str, optional): The optional additional path to be appended to 
-            the parsed URL. Defaults to an empty string.
+        from_base_and_path(base_url: str, path: str) -> 'URL':
+            Creates a URL instance from a base URL and a path.
 
     Raises:
-        ValueError: If the provided URL or reconstructed URL is invalid 
+        ValueError: If the provided URL or reconstructed URL is invalid
             according to the 'validators.url' check.
     """
-    url: str = field(init=False)
-    base_url: str = field(init=False)
-    path: str | None = field(init=False)
+    url: str
+    base_url: str
+    path: str
 
-    def __init__(self, *, url: str, path: str = ''):
-        if not validators.url(url):
-            raise ValueError(f"Passed URL '{url}' is invalid.")
+    @classmethod
+    def from_full_url(cls, full_url: str) -> 'URL':
+        """
+        Creates a URL instance by parsing a full URL string.
 
-        path = path.strip().strip('/')
-        url = url.strip().rstrip('/')
+        Args:
+            full_url (str): The full URL to parse and validate.
 
-        parsed_url: ParseResult = urlparse(url)
-        attrs: dict[str, str] = {}
+        Returns:
+            URL: An instance of the URL class with parsed components.
 
-        attrs['base_url'] = f"{parsed_url.scheme}://{parsed_url.netloc}"
-        attrs['path'] = (parsed_url.path + '/' + path).strip('/') 
-        attrs['url'] = urljoin(attrs['base_url'] + '/', attrs['path']) 
+        Raises:
+            ValueError: If the passed full_url is not a valid URL according
+                to validators.url.
+        """
+        full_url = full_url.strip().rstrip('/')
 
-        if not validators.url(attrs['url']):
-            raise ValueError(f"Reconstructed URL '{attrs['url']}' is invalid.")
+        if not validators.url(full_url):
+            raise ValueError(f"Passed URL '{full_url}' is invalid.")
 
-        for key, val in attrs.items(): 
-            object.__setattr__(self, key, val)
+        parsed_url: ParseResult = urlparse(full_url)
+
+        computed_base_url: str = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        computed_path: str = parsed_url.path.strip('/')
+
+        return cls(
+            url=full_url, 
+            base_url=computed_base_url, 
+            path=computed_path
+        )
+
+    @classmethod
+    def from_base_and_path(cls, *, base_url: str, path: str) -> 'URL':
+        """
+        Creates a URL instance from a base URL and a path.
+
+        Args:
+            base_url (str): The base URL, including scheme and netloc.
+            path (str): The path component to append to the base URL.
+
+        Returns:
+            URL: An instance of the URL class with the combined URL.
+
+        Raises:
+            ValueError: If the reconstructed URL is invalid according to
+                validators.url.
+        """
+        cleaned_base_url = base_url.strip().rstrip('/')
+        cleaned_path = path.strip().strip('/')
+
+        computed_url = urljoin(cleaned_base_url + '/', cleaned_path) 
+
+        parsed_url: ParseResult = urlparse(computed_url)
+        full_path = parsed_url.path
+
+        if not validators.url(computed_url):
+            raise ValueError(f"Reconstructed URL '{computed_url}' is invalid.")
+
+        return cls(url=computed_url, base_url=cleaned_base_url, path=full_path)
 
 @dataclass(frozen=True, init=False)
 class BungieResponseData:
@@ -154,18 +222,22 @@ class BungieResponseData:
 
     def __init__(self, raw_data: Response) -> None:
         """
-        Initializes BungieResponseData by parsing and validating a requests.Response object.
+        Initializes BungieResponseData by parsing and validating a 
+        requests.Response object.
 
         Args:
-            raw_data (Response): The raw response object returned by `requests.get()`.
+            raw_data (Response): The raw response object returned by 
+                'requests.get()'.
 
         Raises:
-            ValueError: If the JSON decoding fails, required fields are missing,
-                or unexpected fields are present in the response.
+            ValueError: If the JSON decoding fails, required fields are 
+                missing, or unexpected fields are present in the response.
         """
         try:
             json_data = raw_data.json()
-            attrs = {k: json_data[v] for k, v in self._attrs_conversion.items()}
+            attrs = {
+                k: json_data[v] for k, v in self._attrs_conversion.items()
+            }
 
             if (diff := set(json_data) - set(self._attrs_conversion.values())):
                 raise ValueError(
@@ -196,17 +268,27 @@ class BungieResponseData:
         """
         if self.error_code != 1:
             if self.error_code in (2101, 2102):
-                raise PermissionError(f"Issue with the API key. Error code: {self.error_code}, error message: '{self.message}'.")
-            raise self.APIError(msg="Unexpected Bungie API error.", response_data=self)
+                raise PermissionError(
+                    f"Issue with the API key. Error code: {self.error_code}, "
+                    f"error message: '{self.message}'.")
+            raise self.APIError(
+                msg="Unexpected Bungie API error.", 
+                response_data=self
+            )
 
     class APIError(Exception):
         """
         Exception raised for errors returned by the Bungie API.
 
-        This exception is intended to represent non-permission-related errors
-        in Bungie's API response.
+        This exception is intended to represent non-permission-related 
+        errors in Bungie's API response.
         """ 
-        def __init__(self, msg: str, response_data: 'BungieResponseData | None' = None) -> None:
+        def __init__(
+            self,
+            *,
+            msg: str, 
+            response_data: 'BungieResponseData | None' = None
+        ) -> None:
             """
             Initializes the APIError exception.
 

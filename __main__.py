@@ -10,7 +10,7 @@ lang = 'en'
 expected_remote_lang_dir='/common/destiny_content/sqlite/'
 zip_path = Path('manifest.zip')
 mf_dir_path = Path('manifest')
-mf_finder_url = URL(url=url_root, path=loc_path)
+mf_finder_url = URL.from_base_and_path(base_url=url_root, path=loc_path)
 mf_ext='.content'
 bak_ext='.bak'
 mf_utils.update_manifest(

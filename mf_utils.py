@@ -417,8 +417,8 @@ def update_manifest(
     if not new_mf_remote_path:
         return None
     
-    dl_url = URL(
-        url=dl_url_root, 
+    dl_url = URL.from_base_and_path(
+        base_url=dl_url_root, 
         path=new_mf_remote_path
     )
 
