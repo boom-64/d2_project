@@ -39,13 +39,13 @@ def mv_item(
         FileExistsError: If the target path exists and 'overwrite' is False.
 
     Notes:
-        Do not call this function many times rather than using shutil.move.
+        Do not call this function many times instead of using shutil.move().
     """
     src = src.resolve()
     dst = dst.resolve()
 
     if not src.exists():
-        raise FileNotFoundError(f"Entry to be moved '{src}' does not exist") 
+        raise FileNotFoundError(f"Entry to be moved '{src}' does not exist.")
 
     # Validate entry type compatibility and assign 'target_path'
     target_path: Path = dst
@@ -74,7 +74,7 @@ def calc_file_md5(path: Path) -> MD5Checksum:
     Calculate the MD5 hash of the given file.
 
     Args:
-        path (str | Path): Path to the file.
+        path (Path): Path to the file.
 
     Returns:
         MD5Checksum: The hexadecimal MD5 hash of the file contents.
@@ -98,93 +98,56 @@ def calc_file_md5(path: Path) -> MD5Checksum:
     # Return 'hexdigest()' of 'hasher' MD5 hash object
     return MD5Checksum(hasher.hexdigest())
 
-def add_suffix(path: Path, suffix: str, overwrite: bool = False) -> Path:
-    """
-    Add suffix to end of a file.
+class SuffixManip:
 
-    This function first validates the passed variables, ensuring the file
-    path passed is a file (raising ValueError if not) and that the passed
-    suffix is a compatible file extension (again raising ValueError if not).
-    A new path is created combining the file path and new suffix. If this
-    path refers to an existing file, and overwrite=False, a FileExistsError 
-    is raised. Otherwise, the file is renamed with the new path.
+    def append(self, *, path: Path, suffix: str, overwrite: bool = False) -> Path:
+        self._validate_file(path)
 
-    Args:
-        path (Path, str): Path to file to rename.
-        suffix (str): Suffix to append to file. 
-        overwrite (bool): Whether or not to overwrite files with matching 
-            name.
+        suffix = self._validate_suffix(suffix=suffix)
 
-    Returns:
-        Path: Path to file under new file name.
+        new_path: Path = path.with_name(path.name + suffix)
 
-    Raises:
-        ValueError: If either the passed path doesn't refer to a file or if
-            the passed suffix isn't a compatible file suffix.
-        FileExistsError: If the new path refers to an already existing file.
-    """
-    if not path.is_file():
-        raise ValueError(f"Passed path '{path}' must refer to a file.")
+        return self._update(old_path=path, new_path=new_path, overwrite=overwrite)
+
+    def rm_final(self, *, path: Path, overwrite: bool = False) -> Path:
+        self._validate_file(path)
+
+        if not path.suffix:
+            raise ValueError(f"File '{path}' has no suffix to be removed.")
+
+        new_path: Path = path.with_suffix('')
+
+        return self._update(old_path=path, new_path=new_path, overwrite=overwrite)
     
-    # Check 'suffix' is a usable suffix
-    if not re.fullmatch(r'\.[A-Za-z0-9._-]+', suffix):
-        raise ValueError(f"New suffix {suffix} not a compatible suffix.")
+    def _validate_file(self, path: Path) -> None:
+        if not path.is_file():
+            raise ValueError(f"Passed 'path={path}' must refer to file.")
 
-    # Assign 'new_path'
-    new_path = path.with_name(path.name + suffix)
+    def _validate_suffix(self, suffix: str) -> str:
+        if not isinstance(suffix, str):
+            raise ValueError("Must pass 'suffix'")
 
-    # Raise if filename clash with 'new_path' and 'overwrite==False'
-    if new_path.exists() and not overwrite:
-        raise FileExistsError(f"File with new name {new_path} already exists.")
+        if not suffix.startswith('.'):
+            suffix = '.' + suffix
+
+        if not re.fullmatch(r'\.[A-Za-z0-9._-]+', suffix):
+            raise ValueError(f"New suffix '{suffix}' not a compatible suffix.")
     
-    path.replace(new_path)
-   
-    return new_path
+        return suffix
 
-def rm_suffix(path: Path, overwrite: bool = False) -> Path:
-    """
-    Remove the file extension (suffix) from a file path.
-
-    This function renames the specified file by removing its final suffix 
-    (file extension). For example, "file.txt" becomes "file", and 
-    "archive.tar.gz" becomes "archive.tar".
-
-    Args:
-        path (Path): The path to the file whose suffix should be removed.
-        overwrite (bool): Whether or not to overwrite a possible file
-            matching the new name of the file.
-
-    Returns:
-        Path: A new Path object pointing to the renamed file.
-
-    Raises:
-        ValueError: If the path does not refer to a file, or the file has no 
-            suffix.
-        FileExistsError: If a file with the new name already exists.
-    """
-    path = Path(path)
-
-    if not path.is_file():
-        raise ValueError(f"Passed path {path} must be a file.")
-
-    if not path.suffix:
-        raise ValueError(f"File {path} has no suffix to be removed.")
-    
-    new_path = path.with_suffix('')
-
-    # Raise if filename clash with 'new_path' and 'overwrite==False'
-    if new_path.exists() and not overwrite:
-        raise FileExistsError(f"File with new name {new_path} already exists.")
-
-    path.replace(new_path)
-
-    return new_path
+    def _update(self, old_path: Path, new_path: Path, overwrite: bool) -> Path:
+        if new_path.exists() and not overwrite:
+            raise FileExistsError(f"File with path '{new_path}' already exists.")
+ 
+        old_path.replace(new_path)
+        
+        return new_path
 
 def validate_expected_entry_count(
     entry_type: str, 
-    expected: int | None, 
     actual: int, 
-    entry_source: Path | str
+    entry_source: Path,
+    expected: int
 ) -> None:
     """
     Validates that the actual number of entries matches the expected count.
@@ -199,7 +162,7 @@ def validate_expected_entry_count(
         entry_type (str): A string describing the type of entry being 
             counted (e.g., "file", "directory").
         expected (int, optional): The expected number of entries. If 'None', 
-            no validation is performed. 
+            no validation is performed (default is None).
         actual (int): The actual number of entries found.
         source_path (Path): Path to the source (e.g., directory or archive) 
             where entries were counted. Used for error messages.
@@ -207,21 +170,19 @@ def validate_expected_entry_count(
     Raises:
         ValueError: If 'expected' is negative or does not match 'actual'.
     """
-    # Only execute if 'expected' is not None
-    if expected is not None:
-        # Raise if expected is negative
-        if expected < 0:
-            raise ValueError(
-                f"Expected {entry_type} count = {expected}: cannot have "
-                f"negative number of {entry_type}s in archive."
-            )
+    # Raise if expected is negative
+    if expected < 0:
+        raise ValueError(
+            f"Expected '{entry_type}' count = {expected}: cannot have "
+            f"negative number of '{entry_type}'s in archive."
+        )
         
-        # Raise if 'actual' != 'expected'
-        if actual != expected:
-            raise ValueError(
-                f"Unexpected {entry_type} count in {entry_source}: "
-                f"expected {expected}, found {actual}."
-            )
+    # Raise if 'actual' != 'expected'
+    if actual != expected:
+        raise ValueError(
+            f"Unexpected '{entry_type}' count in '{entry_source}': "
+            f"expected {expected}, found {actual}."
+        )
 
 def extract_zip(
     zip_path: Path, 

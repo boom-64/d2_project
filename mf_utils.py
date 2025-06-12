@@ -11,6 +11,8 @@ import utils
 from schemas import URL, MD5Checksum, BungieResponseData
 from errors import DownloadError
 
+suffix_manipulator = utils.SuffixManip()
+
 def request_bungie(url: URL, key: str | None = None) -> BungieResponseData:
     """
     Function to make GET request to Bungie URL and return parsed response.
@@ -430,7 +432,7 @@ def update_manifest(
     )
 
     if current_mf_path:
-        current_mf_path = utils.add_suffix(
+        current_mf_path = suffix_manipulator.append(
             path=current_mf_path, 
             suffix=bak_ext,
             overwrite=True
@@ -449,7 +451,7 @@ def update_manifest(
             utils.rm_sibling_files(
                 files_to_keep={current_mf_path.resolve()}
             )
-            utils.rm_suffix(current_mf_path)
+            suffix_manipulator.rm_final(path=current_mf_path)
         raise
     new_mf_local_path = fetch_current_mf_path(
         mf_dir_path=mf_dir_path, 
