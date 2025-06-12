@@ -246,7 +246,7 @@ def dl_bungie_content(
     except OSError as e:
         raise OSError(f"Error writing file {file.name}: {e}") from e
 
-def dl_mf_zip(zip_path: str | Path, url: schemas.ParsedURL) -> None:
+def dl_mf_zip(output_path: Path, url: schemas.ParsedURL) -> None:
     """
     Function to download manifest zip from Bungie
 
@@ -273,8 +273,7 @@ def dl_mf_zip(zip_path: str | Path, url: schemas.ParsedURL) -> None:
         OSError: If an error occurs moving the file, or if an unexpected 
             OSError occurs in temporary file cleanup.
     """
-    # Leverages Python's short-circuit evaluation
-    output_path: Path = Path(zip_path or 'manifest.zip')
+    output_path = Path(output_path)
 
     tmp_path: Path | None = None
     write_success: bool = False # Stores write success of dl_bungie_content()
@@ -425,7 +424,7 @@ def update_manifest(
         path=new_mf_remote_path
     )
 
-    dl_mf_zip(zip_path=Path(zip_path), url=dl_url)
+    dl_mf_zip(output_path=zip_path, url=dl_url)
 
     current_mf_path: Path | None = fetch_current_mf_path(
         mf_dir_path=mf_dir_path,
@@ -454,13 +453,16 @@ def update_manifest(
             )
             suffix_utils.rm_final(path=current_mf_path)
         raise
+
+    fs_utils.rm_file(zip_path)
+
     new_mf_local_path = fetch_current_mf_path(
         mf_dir_path=mf_dir_path, 
         mf_ext=mf_ext
     )
     if not new_mf_local_path:
         raise FileNotFoundError(
-            f"No manifest file found in {mf_dir_path.resolve()}."
+            f"No manifest file found in {mf_dir_path}."
         )
     
     expected_md5: schemas.MD5Checksum = extract_expected_md5(

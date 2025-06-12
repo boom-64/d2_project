@@ -245,3 +245,8 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
                     f"Failed to delete item '{item.name}' from '{directory}': "
                     f"{e}"
                 ) from e
+
+def rm_file(file: Path) -> None:
+    if not file.is_file():
+        raise ValueError(f"Path 'file={file}' does not refer to a file")
+    file.unlink()

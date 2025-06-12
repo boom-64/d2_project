@@ -15,8 +15,8 @@ mf_finder_url = schemas.ParsedURL.from_base_and_path(
 lang = 'en'
 expected_remote_lang_dir='/common/destiny_content/sqlite/'
 
-zip_path = Path('manifest.zip')
-mf_dir_path = Path('manifest')
+zip_path = Path('manifest.zip').resolve()
+mf_dir_path = Path('manifest').resolve()
 
 mf_ext='.content'
 bak_ext='.bak'
