@@ -1,14 +1,15 @@
+import hashlib
+import logging
+import re
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse, ParseResult
-import validators
-import re
 from json.decoder import JSONDecodeError
-import logging
-from requests import Response
-from typing import Any
-from types import MappingProxyType
+from typing import Any 
+from types import MappingProxyType, NoneType
 from pathlib import Path
-import hashlib
+
+import validators
+from requests import Response
 
 import core._typing
 
@@ -17,14 +18,14 @@ class MD5Checksum:
     val: str
 
     def __post_init__(self) -> None:
-        core._typing.ensure_type(name='self.val', val=self.val, expected_types=str)
+        core._typing.ensure_type(name='self.val', val=self.val, types=str)
 
-        lowercase_val: str = self.val.lower()
+        lc_val: str = self.val.lower()
 
-        if not re.fullmatch(r'^[a-f0-9]{32}$', lowercase_val):
+        if not re.fullmatch(r'^[a-f0-9]{32}$', lc_val):
             raise ValueError(f"Invalid MD5 checksum: {self.val}")
 
-        object.__setattr__(self, 'val', lowercase_val)
+        object.__setattr__(self, 'val', lc_val)
 
     class MismatchError(Exception):
         """
@@ -50,6 +51,9 @@ class MD5Checksum:
             expected: 'MD5Checksum', 
             computed: 'MD5Checksum'
         ) -> None:
+            for name, val in (('expected', expected), ('computed', computed)):
+                core._typing.ensure_type(name=name, val=val, types=MD5Checksum)
+                
             self.expected = expected
             self.computed = computed
 
@@ -60,10 +64,11 @@ class MD5Checksum:
 
     def assert_equals(self, *, expected: Any, strict: bool=False):
         core._typing.ensure_type(
-            name='expected', 
-            val=expected, 
-            expected_types=MD5Checksum
-        ) 
+            name='expected', val=expected, types=MD5Checksum
+        )
+        core._typing.ensure_type(
+            name='strict', val=strict, types=bool
+        )
         if self == expected:
             return
         if strict:
@@ -85,11 +90,7 @@ class MD5Checksum:
             TypeError: If 'path' type is not Path.
             ValueError: If 'path' does not refer to a file.
         """
-        core._typing.ensure_type(
-            name='path',
-            val=path,
-            expected_types=Path
-        )
+        core._typing.ensure_type(name='path', val=path, types=Path)
         if not path.is_file():
             raise ValueError(
                 f"Provided path '{path}' does not refer to a file."
@@ -154,11 +155,7 @@ class ParsedURL:
             ValueError: If the passed full_url is not a string or is not a 
             valid URL according to validators.url().
         """
-        core._typing.ensure_type(
-            name='full_url',
-            val=full_url,
-            expected_types=str
-        )
+        core._typing.ensure_type(name='full_url', val=full_url, types=str)
         full_url = full_url.strip().rstrip('/')
 
         if not validators.url(full_url):
@@ -195,11 +192,7 @@ class ParsedURL:
                 validators.url().
         """
         for name, val in (('base_url', base_url), ('path', path)):
-            core._typing.ensure_type(
-                name=name,
-                val=val,
-                expected_types=str
-            )
+            core._typing.ensure_type(name=name, val=val, types=str)
 
         cleaned_base_url = base_url.strip().rstrip('/')
         cleaned_path = path.strip().strip('/')
@@ -261,6 +254,7 @@ class BungieResponseData:
             ValueError: If the JSON decoding fails, required fields are 
                 missing, or unexpected fields are present in the response.
         """
+        core._typing.ensure_type(name='raw_data', val=raw_data, types=Response)
         try:
             json_data = raw_data.json()
             attrs = {
@@ -292,12 +286,8 @@ class BungieResponseData:
             ('message_data', self.message_data, dict),
             ('response', self.response, dict),
         ):
-            core._typing.ensure_type(
-                name=name, 
-                val=val, 
-                expected_types=expected_types
-            )
-
+            core._typing.ensure_type(name=name, val=val, types=expected_types)
+            
         self._validate_error_code()
 
     def _validate_error_code(self) -> None:
@@ -339,6 +329,19 @@ class BungieResponseData:
                 response_data (BungieResponseData | None, optional): The
                     BungieResponseData instance related to this error.
             """
+            for name, val, types in (
+                (
+                    'msg', 
+                    msg, 
+                    str
+                ),
+                (
+                    'response_data', 
+                    response_data, 
+                    (BungieResponseData, NoneType)
+                )
+            ):
+                core._typing.ensure_type(name=name, val=val, types=types)
             if response_data:
                 msg = f"{msg.rstrip()} Response data: '{response_data}'."
             super().__init__(msg)

@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from utils import mf_utils
-from core import schemas 
+import utils.mf_utils
+import core.schemas 
 
 api_key = 'd4705221d56b4040b8c5c6b4ebd58757'
 
 url_root = 'https://www.bungie.net'
 loc_path = '/Platform/Destiny/Manifest'
-mf_finder_url = schemas.ParsedURL.from_base_and_path(
+mf_finder_url = core.schemas.ParsedURL.from_base_and_path(
     base_url=url_root, 
     path=loc_path
 )
@@ -21,7 +21,7 @@ mf_dir_path = Path('manifest').resolve()
 mf_ext='.content'
 bak_ext='.bak'
 
-mf_utils.update_manifest(
+utils.mf_utils.update_manifest(
     key=api_key,
     dl_url_root=url_root,
     mf_finder_url=mf_finder_url,

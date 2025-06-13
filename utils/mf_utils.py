@@ -1,20 +1,20 @@
-import tempfile
-import shutil
 import errno
 import re
+import shutil
+import tempfile
 from pathlib import Path
 from typing import IO
 
 import requests
 
-from utils import fs_utils, suffix_utils
-from core import schemas 
-from core.errors import DownloadError
+import core.schemas
+import utils.fs_utils, utils.suffix_utils
+import core.errors
 
 def request_bungie(
-    url: schemas.ParsedURL, 
+    url: core.schemas.ParsedURL, 
     key: str | None = None
-) -> schemas.BungieResponseData:
+) -> core.schemas.BungieResponseData:
     """
     Function to make GET request to Bungie URL and return parsed response.
     
@@ -44,10 +44,13 @@ def request_bungie(
             f"{response.reason}"
         )
     
-    return schemas.BungieResponseData(response)
+    return core.schemas.BungieResponseData(response)
     
 
-def extract_mf_path(response: schemas.BungieResponseData, lang: str) -> str:
+def extract_mf_path(
+    response: core.schemas.BungieResponseData, 
+    lang: str
+) -> str:
     """
     Function to extract manifest path from Bungie response data.
 
@@ -87,7 +90,7 @@ def extract_mf_path(response: schemas.BungieResponseData, lang: str) -> str:
                 ) from e
 
 def fetch_remote_mf_path(
-    url: schemas.ParsedURL,
+    url: core.schemas.ParsedURL,
     key: str,
     lang: str
 ) -> str:
@@ -197,7 +200,7 @@ def fetch_current_mf_path(
 
 def dl_bungie_content(
     file: IO[bytes], 
-    url: schemas.ParsedURL,
+    url: core.schemas.ParsedURL,
     stream: bool = True
 ) -> bool:
     """
@@ -237,7 +240,7 @@ def dl_bungie_content(
         return True 
 
     except requests.RequestException as e:
-        raise DownloadError(
+        raise core.errors.DownloadError(
             url=url, 
             stream=stream, 
             original_exception=e
@@ -246,7 +249,7 @@ def dl_bungie_content(
     except OSError as e:
         raise OSError(f"Error writing file {file.name}: {e}") from e
 
-def dl_mf_zip(output_path: Path, url: schemas.ParsedURL) -> None:
+def dl_mf_zip(output_path: Path, url: core.schemas.ParsedURL) -> None:
     """
     Function to download manifest zip from Bungie
 
@@ -290,7 +293,7 @@ def dl_mf_zip(output_path: Path, url: schemas.ParsedURL) -> None:
             )
 
         # Overwriting existing archives is fine
-        fs_utils.mv_item(
+        utils.fs_utils.mv_item(
             src=tmp_path, 
             dst=output_path, 
             overwrite=True 
@@ -315,7 +318,7 @@ def dl_mf_zip(output_path: Path, url: schemas.ParsedURL) -> None:
                 if e.errno not in (errno.ENOENT, errno.EPERM, errno.EACCES):
                     raise
 
-def extract_expected_md5(mf: Path) -> schemas.MD5Checksum:
+def extract_expected_md5(mf: Path) -> core.schemas.MD5Checksum:
     """
     Extract the expected MD5 hash from the manifest file name.
 
@@ -329,11 +332,11 @@ def extract_expected_md5(mf: Path) -> schemas.MD5Checksum:
     """
     validate_mf_name(mf.name)
     
-    return schemas.MD5Checksum(mf.stem.split('_')[-1])
+    return core.schemas.MD5Checksum(mf.stem.split('_')[-1])
 
 def fetch_mf_update_path(
     key: str, 
-    url: schemas.ParsedURL,
+    url: core.schemas.ParsedURL,
     lang: str,
     mf_dir_path: Path,
     expected_remote_lang_dir: str,
@@ -388,7 +391,7 @@ def fetch_mf_update_path(
 def update_manifest(
     key: str, 
     dl_url_root: str, 
-    mf_finder_url: schemas.ParsedURL, 
+    mf_finder_url: core.schemas.ParsedURL, 
     expected_remote_lang_dir: str,
     zip_path: Path,
     mf_dir_path: Path,
@@ -419,7 +422,7 @@ def update_manifest(
     if not new_mf_remote_path:
         return None
     
-    dl_url = schemas.ParsedURL.from_base_and_path(
+    dl_url = core.schemas.ParsedURL.from_base_and_path(
         base_url=dl_url_root, 
         path=new_mf_remote_path
     )
@@ -432,14 +435,14 @@ def update_manifest(
     )
 
     if current_mf_path:
-        current_mf_path = suffix_utils.append(
+        current_mf_path = utils.suffix_utils.append(
             path=current_mf_path, 
             suffix=bak_ext,
             overwrite=True
         )
 
     try:
-        fs_utils.extract_zip(
+        utils.fs_utils.extract_zip(
             zip_path=zip_path, 
             extract_to=mf_dir_path, 
             expected_file_count=1,
@@ -448,13 +451,13 @@ def update_manifest(
 
     except:
         if current_mf_path:
-            fs_utils.rm_sibling_files(
+            utils.fs_utils.rm_sibling_files(
                 files_to_keep={current_mf_path.resolve()}
             )
-            suffix_utils.rm_final(path=current_mf_path)
+            utils.suffix_utils.rm_final(path=current_mf_path)
         raise
 
-    fs_utils.rm_file(zip_path)
+    utils.fs_utils.rm_file(zip_path)
 
     new_mf_local_path = fetch_current_mf_path(
         mf_dir_path=mf_dir_path, 
@@ -465,10 +468,10 @@ def update_manifest(
             f"No manifest file found in {mf_dir_path}."
         )
     
-    expected_md5: schemas.MD5Checksum = extract_expected_md5(
+    expected_md5: core.schemas.MD5Checksum = extract_expected_md5(
         mf=new_mf_local_path
     )
-    computed_md5: schemas.MD5Checksum = schemas.MD5Checksum.calc(
+    computed_md5: core.schemas.MD5Checksum = core.schemas.MD5Checksum.calc(
         path=new_mf_local_path
     )
     computed_md5.assert_equals(expected=expected_md5, strict=strict)

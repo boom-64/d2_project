@@ -1,4 +1,4 @@
-from core import schemas
+import core.schemas
 
 class DownloadError(Exception):
     """
@@ -17,7 +17,7 @@ class DownloadError(Exception):
     def __init__(
         self, 
         *,
-        url: schemas.ParsedURL, 
+        url: core.schemas.ParsedURL, 
         stream: bool, 
         original_exception: Exception
     ):
