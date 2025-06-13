@@ -10,17 +10,21 @@ from types import MappingProxyType
 from pathlib import Path
 import hashlib
 
+import core._typing
+
 @dataclass(frozen=True)
 class MD5Checksum:
     val: str
 
     def __post_init__(self) -> None:
-        valildated: str = self.val.lower()
+        core._typing.ensure_type(name='self.val', val=self.val, expected_types=str)
 
-        if not re.fullmatch(r'^[a-f0-9]{32}$', valildated):
+        lowercase_val: str = self.val.lower()
+
+        if not re.fullmatch(r'^[a-f0-9]{32}$', lowercase_val):
             raise ValueError(f"Invalid MD5 checksum: {self.val}")
 
-        object.__setattr__(self, 'val', valildated)
+        object.__setattr__(self, 'val', lowercase_val)
 
     class MismatchError(Exception):
         """
@@ -41,7 +45,8 @@ class MD5Checksum:
         computed: 'MD5Checksum'
 
         def __init__(
-            self, 
+            self,
+            *,
             expected: 'MD5Checksum', 
             computed: 'MD5Checksum'
         ) -> None:
@@ -50,15 +55,15 @@ class MD5Checksum:
 
             super().__init__(
                 f"Checksum mismatch: expected {self.expected.val}, got "
-                f"{self.computed.val}"
+                f"{self.computed.val}."
             )
 
-    def assert_equals(self, *, expected: 'MD5Checksum', strict: bool=False):
-        if not isinstance(expected, MD5Checksum):
-            raise TypeError(
-                f"Cannot compare MD5Checksum with '{expected}' of type "
-                f"'{type(expected)}'."
-            )
+    def assert_equals(self, *, expected: Any, strict: bool=False):
+        core._typing.ensure_type(
+            name='expected', 
+            val=expected, 
+            expected_types=MD5Checksum
+        ) 
         if self == expected:
             return
         if strict:
@@ -66,19 +71,25 @@ class MD5Checksum:
         logging.warning(f"Checksum mismatch: {self.val} != {expected.val}.")
 
     @classmethod
-    def calc(cls, path: Path) -> 'MD5Checksum':
+    def calc(cls, path: Any) -> 'MD5Checksum':
         """
         Calculate the MD5 hash of the given file.
 
         Args:
-            path (Path): Path to the file.
+            path (Any): Path to the file. Raises if type not Path.
 
         Returns:
             MD5Checksum: The hexadecimal MD5 hash of the file contents.
 
         Raises:
+            TypeError: If 'path' type is not Path.
             ValueError: If 'path' does not refer to a file.
         """
+        core._typing.ensure_type(
+            name='path',
+            val=path,
+            expected_types=Path
+        )
         if not path.is_file():
             raise ValueError(
                 f"Provided path '{path}' does not refer to a file."
@@ -119,28 +130,35 @@ class ParsedURL:
             Creates a URL instance from a base URL and a path.
 
     Raises:
-        ValueError: If the provided URL or reconstructed URL is invalid
-            according to the 'validators.url' check.
+        TypeError: If any argument types are incorrect.
+        ValueError: If the reconstructed URL is valid according to the 
+            'validators.url()' check.
     """
     url: str
     base_url: str
     path: str
 
     @classmethod
-    def from_full_url(cls, full_url: str) -> 'ParsedURL':
+    def from_full_url(cls, full_url: Any) -> 'ParsedURL':
         """
         Creates a URL instance by parsing a full URL string.
 
         Args:
-            full_url (str): The full URL to parse and validate.
+            full_url (Any): The full URL to parse and validate. Will raise 
+                if type is not str.
 
         Returns:
             URL: An instance of the URL class with parsed components.
 
         Raises:
-            ValueError: If the passed full_url is not a valid URL according
-                to validators.url.
+            ValueError: If the passed full_url is not a string or is not a 
+            valid URL according to validators.url().
         """
+        core._typing.ensure_type(
+            name='full_url',
+            val=full_url,
+            expected_types=str
+        )
         full_url = full_url.strip().rstrip('/')
 
         if not validators.url(full_url):
@@ -158,21 +176,31 @@ class ParsedURL:
         )
 
     @classmethod
-    def from_base_and_path(cls, *, base_url: str, path: str) -> 'ParsedURL':
+    def from_base_and_path(cls, *, base_url: Any, path: Any) -> 'ParsedURL':
         """
         Creates a URL instance from a base URL and a path.
 
         Args:
-            base_url (str): The base URL, including scheme and netloc.
-            path (str): The path component to append to the base URL.
+            base_url (Any): The base URL, including scheme and netloc. Will 
+                raise if type is not str.
+            path (Any): The path component to append to the base URL. Will 
+                raise if type is not str.
 
         Returns:
             URL: An instance of the URL class with the combined URL.
 
         Raises:
-            ValueError: If the reconstructed URL is invalid according to
-                validators.url.
+            TypeError: If the passed values aren't strings.
+            ValueError: If the reconstructed URL is invalid according to 
+                validators.url().
         """
+        for name, val in (('base_url', base_url), ('path', path)):
+            core._typing.ensure_type(
+                name=name,
+                val=val,
+                expected_types=str
+            )
+
         cleaned_base_url = base_url.strip().rstrip('/')
         cleaned_path = path.strip().strip('/')
 
@@ -255,10 +283,24 @@ class BungieResponseData:
 
         for key, val in attrs.items():
             object.__setattr__(self, key, val)
+        
+        for name, val, expected_types in (
+            ('error_code', self.error_code, int),
+            ('throttle_seconds', self.throttle_seconds, int),
+            ('error_status', self.error_status, str),
+            ('message', self.message, str),
+            ('message_data', self.message_data, dict),
+            ('response', self.response, dict),
+        ):
+            core._typing.ensure_type(
+                name=name, 
+                val=val, 
+                expected_types=expected_types
+            )
 
-        self._validate()
+        self._validate_error_code()
 
-    def _validate(self) -> None:
+    def _validate_error_code(self) -> None:
         """
         Validates the error_code to determine if the response indicates success.
 

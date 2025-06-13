@@ -8,19 +8,19 @@ class DownloadError(Exception):
     the source URL of the download, whether or not the file is being 
     streamed, and the original exception.
 
-    Attributes:
-        url (str): The source URL of the downloading file.
-        stream (bool): Signifies whether or not the file was being 
-            streamed. True for streaming; False for not.
-        original_exception (Exception): The original exception.
-    
-    Args:
-        url (str): The source URL of the downloading file.
+    Attributes/args:
+        url (schemas.ParsedURL): The source URL of the downloading file.
         stream (bool): Signifies whether or not the file was being 
             streamed. True for streaming; False for not.
         original_exception (Exception): The original exception.
     """
-    def __init__(self, url: schemas.ParsedURL, stream: bool, original_exception: Exception):
+    def __init__(
+        self, 
+        *,
+        url: schemas.ParsedURL, 
+        stream: bool, 
+        original_exception: Exception
+    ):
         self.url = url
         self.stream = stream
         self.original_exception = original_exception
