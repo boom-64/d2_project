@@ -1,6 +1,9 @@
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import core.validators
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 def append(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
     """

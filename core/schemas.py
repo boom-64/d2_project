@@ -4,13 +4,17 @@ import re
 from dataclasses import dataclass, field
 from json.decoder import JSONDecodeError
 from types import MappingProxyType
-from typing import Any 
-from urllib.parse import ParseResult, urljoin, urlparse 
+from typing import TYPE_CHECKING
+from urllib.parse import urljoin, urlparse 
 
 import validators
-from requests import Response
 
 import core.errors, core.error_handlers
+
+if TYPE_CHECKING:
+    from typing import Any
+    from urllib.parse import ParseResult
+    from requests import Response
 
 @dataclass(frozen=True)
 class MD5Checksum:

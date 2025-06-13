@@ -2,12 +2,15 @@ import errno
 import shutil
 import tempfile
 from pathlib import Path
-from typing import IO
+from typing import TYPE_CHECKING
 
 import requests
 
-import core.schemas, core.errors, core.validators
+import core.errors, core.schemas, core.validators
 import utils.fs_utils, utils.suffix_utils
+
+if TYPE_CHECKING:
+    from typing import IO
 
 def request_bungie(
     url: core.schemas.ParsedURL, 
