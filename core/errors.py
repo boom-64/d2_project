@@ -1,4 +1,7 @@
-import core.schemas 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import core.schemas
 
 class DownloadError(Exception):
     """
@@ -30,3 +33,32 @@ class DownloadError(Exception):
         )
 
         super().__init__(message)
+
+class ChecksumMismatchError(Exception):
+    """
+    Custom exception for checksum mismatches.
+
+    This exception is raised when a calculated checksum does not match 
+    the expected checksum. It includes both the expected and actual 
+    checksums.
+
+    Attributes/args:
+        expected (MD5Checksum): Expected checksum.
+        computed (MD5Checksum): Actual checksum calculated.
+    """
+    expected: core.schemas.MD5Checksum
+    computed: core.schemas.MD5Checksum
+
+    def __init__(
+        self,
+        *,
+        expected: core.schemas.MD5Checksum, 
+        computed: core.schemas.MD5Checksum
+    ) -> None:
+        self.expected = expected
+        self.computed = computed
+
+        super().__init__(
+            f"Checksum mismatch: expected {self.expected.val}, got "
+            f"{self.computed.val}."
+        )

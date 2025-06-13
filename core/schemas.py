@@ -10,6 +10,8 @@ from urllib.parse import ParseResult, urljoin, urlparse
 import validators
 from requests import Response
 
+import core.errors
+
 @dataclass(frozen=True)
 class MD5Checksum:
     val: str
@@ -22,43 +24,13 @@ class MD5Checksum:
 
         object.__setattr__(self, 'val', lc_val)
 
-    class MismatchError(Exception):
-        """
-        Custom exception for checksum mismatches.
-
-        This exception is raised when a calculated checksum does not match 
-        the expected checksum. It includes both the expected and actual 
-        checksums.
-
-        Attributes:
-            expected (MD5Checksum): Expected checksum.
-            computed (MD5Checksum): Actual checksum calculated.
-        Args:
-            expected (MD5Checksum): The expected checksum value.
-            computed (MD5Checksum): The actual checksum that was calculated.
-        """
-        expected: 'MD5Checksum'
-        computed: 'MD5Checksum'
-
-        def __init__(
-            self,
-            *,
-            expected: 'MD5Checksum', 
-            computed: 'MD5Checksum'
-        ) -> None:
-            self.expected = expected
-            self.computed = computed
-
-            super().__init__(
-                f"Checksum mismatch: expected {self.expected.val}, got "
-                f"{self.computed.val}."
-            )
-
     def assert_equals(self, *, expected: Any, strict: bool=False):
         if self == expected:
             return
         if strict:
-            raise self.MismatchError(computed=self, expected=expected)
+            raise core.errors.ChecksumMismatchError(
+                computed=self, expected=expected
+            )
         logging.warning(f"Checksum mismatch: {self.val} != {expected.val}.")
 
     @classmethod
