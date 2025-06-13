@@ -1,5 +1,4 @@
 import errno
-import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -7,12 +6,12 @@ from typing import IO
 
 import requests
 
-import core.schemas
+import core.schemas, core.errors, core.validators
 import utils.fs_utils, utils.suffix_utils
-import core.errors
 
 def request_bungie(
     url: core.schemas.ParsedURL, 
+    *,
     key: str | None = None
 ) -> core.schemas.BungieResponseData:
     """
@@ -48,6 +47,7 @@ def request_bungie(
     
 
 def extract_mf_path(
+    *,
     response: core.schemas.BungieResponseData, 
     lang: str
 ) -> str:
@@ -90,6 +90,7 @@ def extract_mf_path(
                 ) from e
 
 def fetch_remote_mf_path(
+    *,
     url: core.schemas.ParsedURL,
     key: str,
     lang: str
@@ -115,40 +116,24 @@ def fetch_remote_mf_path(
 
     return extract_mf_path(response=response, lang=lang)
 
-def validate_remote_mf_dir(
-    remote_path: str, 
-    expected_dir: str, 
-    strict: bool = True
-) -> None:
-    if not remote_path.startswith(expected_dir) and strict:
-        raise ValueError(
-            f"Invalid remote manifest format: '{remote_path}'. " 
-            f"Bungie may have changed manifest path format."
-        )
-    # Log 
-
-def validate_mf_name(name: str) -> None:
-    if not re.fullmatch(r"^world_sql_content_[a-fA-F0-9]{32}\.content$", name):
-        raise ValueError(
-            f"File name '{name}' does not match expected manifest name format."
-        )
-
 def extract_remote_mf_name(
+    *,
     remote_path: str,
     expected_lang_dir: str,
     lang: str,
     strict: bool = True
 ) -> str:
-    validate_remote_mf_dir(
+    core.validators.remote_mf_dir(
         remote_path=remote_path, 
         strict=strict, 
         expected_dir=f"{expected_lang_dir}{lang}/"
     )
     name = remote_path.split('/')[-1]
-    validate_mf_name(name=name)
+    core.validators.mf_name(name=name)
     return name
 
 def fetch_current_mf_path(
+    *,
     mf_dir_path: Path, 
     mf_ext: str
 ) -> Path | None:
@@ -199,6 +184,7 @@ def fetch_current_mf_path(
     return mf_candidates[0]
 
 def dl_bungie_content(
+    *,
     file: IO[bytes], 
     url: core.schemas.ParsedURL,
     stream: bool = True
@@ -249,7 +235,7 @@ def dl_bungie_content(
     except OSError as e:
         raise OSError(f"Error writing file {file.name}: {e}") from e
 
-def dl_mf_zip(output_path: Path, url: core.schemas.ParsedURL) -> None:
+def dl_mf_zip(*, output_path: Path, url: core.schemas.ParsedURL) -> None:
     """
     Function to download manifest zip from Bungie
 
@@ -330,11 +316,12 @@ def extract_expected_md5(mf: Path) -> core.schemas.MD5Checksum:
     Returns:
         str: The expected MD5 hash string extracted from the filename.
     """
-    validate_mf_name(mf.name)
+    core.validators.mf_name(mf.name)
     
     return core.schemas.MD5Checksum(mf.stem.split('_')[-1])
 
 def fetch_mf_update_path(
+    *,
     key: str, 
     url: core.schemas.ParsedURL,
     lang: str,
@@ -372,7 +359,7 @@ def fetch_mf_update_path(
     if current_mf_path:
         current_mf_name = current_mf_path.name
 
-        validate_mf_name(current_mf_name)
+        core.validators.mf_name(current_mf_name)
 
     new_mf_path: str = fetch_remote_mf_path(url=url, key=key, lang=lang)
 
@@ -389,6 +376,7 @@ def fetch_mf_update_path(
     return new_mf_path
 
 def update_manifest(
+    *,
     key: str, 
     dl_url_root: str, 
     mf_finder_url: core.schemas.ParsedURL, 

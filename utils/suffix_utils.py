@@ -1,5 +1,6 @@
-import re
 from pathlib import Path
+
+import core.validators
 
 def append(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
     """
@@ -17,9 +18,9 @@ def append(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
     Returns:
         Path: The new Path object with the appended suffix.
     """
-    _validate_file(path)
+    core.validators.entry_is_file(path)
 
-    suffix = _validate_suffix(suffix=suffix)
+    suffix = core.validators.file_suffix(suffix=suffix)
 
     new_path: Path = path.with_name(path.name + suffix)
 
@@ -42,7 +43,7 @@ def rm_final(*, path: Path, overwrite: bool = False) -> Path:
     Raises:
         ValueError: If the given (validated) file has no suffix.
     """
-    _validate_file(path)
+    core.validators.entry_is_file(path)
 
     if not path.suffix:
         raise ValueError(f"File '{path}' has no suffix to be removed.")
@@ -51,44 +52,6 @@ def rm_final(*, path: Path, overwrite: bool = False) -> Path:
 
     return _update_filename(old_path=path, new_path=new_path, overwrite=overwrite)
     
-def _validate_file(path: Path) -> None:
-    """
-    Validate that the given path refers to an existing file.
-
-    Args:
-        path (Path): The path to validate.
-
-    Raises:
-        ValueError: If the path does not refer to a file.
-    """
-    if not path.is_file():
-        raise ValueError(f"Passed 'path={path}' must refer to file.")
-
-def _validate_suffix(suffix: str) -> str:
-    """
-    Validate and normalize the suffix string.
-
-    Ensures the suffix is a string, starts with a '.', and matches allowed 
-    characters.
-
-    Args:
-        suffix (str): The suffix string to validate.
-
-    Returns:
-        str: Normalized suffix starting with '.'.
-
-    Raises:
-        ValueError: If the suffix is not a string or does not match the 
-            allowed pattern.
-    """
-    if not suffix.startswith('.'):
-        suffix = '.' + suffix
-
-    if not re.fullmatch(r'\.[A-Za-z0-9._-]+', suffix):
-        raise ValueError(f"New suffix '{suffix}' not a compatible suffix.")
-    
-    return suffix
-
 def _update_filename(old_path: Path, new_path: Path, overwrite: bool) -> Path:
     """
     Rename the file from 'old_path' to 'new_path'.

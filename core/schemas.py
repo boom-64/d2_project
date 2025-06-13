@@ -10,7 +10,7 @@ from urllib.parse import ParseResult, urljoin, urlparse
 import validators
 from requests import Response
 
-import core.errors
+import core.errors, core.error_handlers
 
 @dataclass(frozen=True)
 class MD5Checksum:
@@ -230,48 +230,8 @@ class BungieResponseData:
         for key, val in attrs.items():
             object.__setattr__(self, key, val)
         
-        self._validate_error_code()
-
-    def _validate_error_code(self) -> None:
-        """
-        Validates the error_code to determine if the response indicates success.
-
-        Raises:
-            PermissionError: If the error code indicates an API key issue.
-            APIError: For other unexpected Bungie API errors.
-        """
-        if self.error_code != 1:
-            if self.error_code in (2101, 2102):
-                raise PermissionError(
-                    f"Issue with the API key. Error code: {self.error_code}, "
-                    f"error message: '{self.message}'.")
-            raise self.APIError(
-                msg="Unexpected Bungie API error.", 
-                response_data=self
-            )
-
-    class APIError(Exception):
-        """
-        Exception raised for errors returned by the Bungie API.
-
-        This exception is intended to represent non-permission-related 
-        errors in Bungie's API response.
-        """ 
-        def __init__(
-            self,
-            *,
-            msg: str, 
-            response_data: 'BungieResponseData | None' = None
-        ) -> None:
-            """
-            Initializes the APIError exception.
-
-            Args:
-                msg (str): Description of the error.
-                response_data (BungieResponseData | None, optional): The
-                    BungieResponseData instance related to this error.
-            """
-            if response_data:
-                msg = f"{msg.rstrip()} Response data: '{response_data}'."
-            
-            super().__init__(msg)
+        core.error_handlers.bungie_error_code(
+            code = self.error_code,
+            msg = self.message,
+            response_data=json_data
+        )

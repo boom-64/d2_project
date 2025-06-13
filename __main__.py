@@ -1,36 +1,21 @@
 from pathlib import Path
 
-import utils.mf_utils
-import core.schemas 
+from core.schemas import ParsedURL
+from utils.mf_utils import update_manifest
 
-api_key = 'd4705221d56b4040b8c5c6b4ebd58757'
-
-url_root = 'https://www.bungie.net'
-loc_path = '/Platform/Destiny/Manifest'
-mf_finder_url = core.schemas.ParsedURL.from_base_and_path(
-    base_url=url_root, 
-    path=loc_path
-)
-
-lang = 'en'
-expected_remote_lang_dir='/common/destiny_content/sqlite/'
-
-zip_path = Path('manifest.zip').resolve()
-mf_dir_path = Path('manifest').resolve()
-
-mf_ext='.content'
-bak_ext='.bak'
-
-utils.mf_utils.update_manifest(
-    key=api_key,
-    dl_url_root=url_root,
-    mf_finder_url=mf_finder_url,
-    expected_remote_lang_dir=expected_remote_lang_dir,
+update_manifest(
+    key='d4705221d56b4040b8c5c6b4ebd58757',
+    dl_url_root='https://www.bungie.net',
+    mf_finder_url= ParsedURL.from_base_and_path(
+        base_url='https://www.bungie.net', 
+        path='/Platform/Destiny/Manifest'
+    ),
+    expected_remote_lang_dir='/common/destiny_content/sqlite/',
     force_update=True,
-    lang=lang,
+    lang='en',
     strict=True,
-    zip_path=zip_path,
-    mf_dir_path=mf_dir_path,
-    mf_ext=mf_ext,
-    bak_ext=bak_ext
+    zip_path=Path('manifest.zip').resolve(),
+    mf_dir_path=Path('manifest').resolve(),
+    mf_ext='.content',
+    bak_ext='.bak'
 )

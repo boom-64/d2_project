@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -62,3 +63,29 @@ class ChecksumMismatchError(Exception):
             f"Checksum mismatch: expected {self.expected.val}, got "
             f"{self.computed.val}."
         )
+
+class BungieAPIError(Exception):
+        """
+        Exception raised for errors returned by the Bungie API.
+
+        This exception is intended to represent non-permission-related 
+        errors in Bungie's API response.
+        """ 
+        def __init__(
+            self,
+            *,
+            msg: str, 
+            response_data: core.schemas.BungieResponseData | None = None
+        ) -> None:
+            """
+            Initializes the APIError exception.
+
+            Args:
+                msg (str): Description of the error.
+                response_data (BungieResponseData | None, optional): The
+                    BungieResponseData instance related to this error.
+            """
+            if response_data:
+                msg = f"{msg.rstrip()} Response data: '{response_data}'."
+            
+            super().__init__(msg)
