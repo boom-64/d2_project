@@ -2,24 +2,19 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass, field
-from urllib.parse import urljoin, urlparse, ParseResult
 from json.decoder import JSONDecodeError
+from types import MappingProxyType
 from typing import Any 
-from types import MappingProxyType, NoneType
-from pathlib import Path
+from urllib.parse import ParseResult, urljoin, urlparse 
 
 import validators
 from requests import Response
-
-import core._typing
 
 @dataclass(frozen=True)
 class MD5Checksum:
     val: str
 
     def __post_init__(self) -> None:
-        core._typing.ensure_type(name='self.val', val=self.val, types=str)
-
         lc_val: str = self.val.lower()
 
         if not re.fullmatch(r'^[a-f0-9]{32}$', lc_val):
@@ -51,9 +46,6 @@ class MD5Checksum:
             expected: 'MD5Checksum', 
             computed: 'MD5Checksum'
         ) -> None:
-            for name, val in (('expected', expected), ('computed', computed)):
-                core._typing.ensure_type(name=name, val=val, types=MD5Checksum)
-                
             self.expected = expected
             self.computed = computed
 
@@ -63,12 +55,6 @@ class MD5Checksum:
             )
 
     def assert_equals(self, *, expected: Any, strict: bool=False):
-        core._typing.ensure_type(
-            name='expected', val=expected, types=MD5Checksum
-        )
-        core._typing.ensure_type(
-            name='strict', val=strict, types=bool
-        )
         if self == expected:
             return
         if strict:
@@ -90,7 +76,6 @@ class MD5Checksum:
             TypeError: If 'path' type is not Path.
             ValueError: If 'path' does not refer to a file.
         """
-        core._typing.ensure_type(name='path', val=path, types=Path)
         if not path.is_file():
             raise ValueError(
                 f"Provided path '{path}' does not refer to a file."
@@ -155,7 +140,6 @@ class ParsedURL:
             ValueError: If the passed full_url is not a string or is not a 
             valid URL according to validators.url().
         """
-        core._typing.ensure_type(name='full_url', val=full_url, types=str)
         full_url = full_url.strip().rstrip('/')
 
         if not validators.url(full_url):
@@ -191,9 +175,6 @@ class ParsedURL:
             ValueError: If the reconstructed URL is invalid according to 
                 validators.url().
         """
-        for name, val in (('base_url', base_url), ('path', path)):
-            core._typing.ensure_type(name=name, val=val, types=str)
-
         cleaned_base_url = base_url.strip().rstrip('/')
         cleaned_path = path.strip().strip('/')
 
@@ -254,7 +235,6 @@ class BungieResponseData:
             ValueError: If the JSON decoding fails, required fields are 
                 missing, or unexpected fields are present in the response.
         """
-        core._typing.ensure_type(name='raw_data', val=raw_data, types=Response)
         try:
             json_data = raw_data.json()
             attrs = {
@@ -278,16 +258,6 @@ class BungieResponseData:
         for key, val in attrs.items():
             object.__setattr__(self, key, val)
         
-        for name, val, expected_types in (
-            ('error_code', self.error_code, int),
-            ('throttle_seconds', self.throttle_seconds, int),
-            ('error_status', self.error_status, str),
-            ('message', self.message, str),
-            ('message_data', self.message_data, dict),
-            ('response', self.response, dict),
-        ):
-            core._typing.ensure_type(name=name, val=val, types=expected_types)
-            
         self._validate_error_code()
 
     def _validate_error_code(self) -> None:
@@ -329,19 +299,7 @@ class BungieResponseData:
                 response_data (BungieResponseData | None, optional): The
                     BungieResponseData instance related to this error.
             """
-            for name, val, types in (
-                (
-                    'msg', 
-                    msg, 
-                    str
-                ),
-                (
-                    'response_data', 
-                    response_data, 
-                    (BungieResponseData, NoneType)
-                )
-            ):
-                core._typing.ensure_type(name=name, val=val, types=types)
             if response_data:
                 msg = f"{msg.rstrip()} Response data: '{response_data}'."
+            
             super().__init__(msg)

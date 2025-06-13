@@ -1,4 +1,4 @@
-import core.schemas
+import core.schemas 
 
 class DownloadError(Exception):
     """
@@ -21,11 +21,12 @@ class DownloadError(Exception):
         stream: bool, 
         original_exception: Exception
     ):
-        self.url = url
         self.stream = stream
         self.original_exception = original_exception
+
         message = (
             f"Failed to download content from {url} "
             f"(stream={stream}): {original_exception}"
         )
+
         super().__init__(message)

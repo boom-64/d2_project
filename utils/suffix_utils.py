@@ -81,9 +81,6 @@ def _validate_suffix(suffix: str) -> str:
         ValueError: If the suffix is not a string or does not match the 
             allowed pattern.
     """
-    if not isinstance(suffix, str):
-        raise ValueError("Must pass 'suffix'")
-
     if not suffix.startswith('.'):
         suffix = '.' + suffix
 
