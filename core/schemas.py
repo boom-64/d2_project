@@ -13,6 +13,7 @@ import validators
 
 import core.errors
 import core.error_handlers
+import core.validators
 
 if TYPE_CHECKING:
     from typing import Any
@@ -56,11 +57,7 @@ class MD5Checksum:
             TypeError: If 'path' type is not Path.
             ValueError: If 'path' does not refer to a file.
         """
-        if not path.is_file():
-            raise ValueError(
-                f"Provided path '{path}' does not refer to a file."
-            )
-
+        core.validators.entry_is_file(path)
         # Assign 'hasher' - an MD5 hash object.
         hasher = hashlib.md5()
 

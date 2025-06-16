@@ -81,9 +81,9 @@ def entry_is_file(path: Path) -> None:
     if not path.is_file():
         raise ValueError(f"Passed 'path={path}' must refer to file.")
 
-def file_suffix(suffix: str) -> str:
+def file_suffix(suffix: str) -> None:
     """
-    Validate and normalize the suffix string.
+    Validate the suffix string.
 
     Ensures the suffix is a string, starts with a '.', and matches allowed
     characters.
@@ -91,17 +91,9 @@ def file_suffix(suffix: str) -> str:
     Args:
         suffix (str): The suffix string to validate.
 
-    Returns:
-        str: Normalized suffix starting with '.'.
-
     Raises:
         ValueError: If the suffix is not a string or does not match the
             allowed pattern.
     """
-    if not suffix.startswith('.'):
-        suffix = '.' + suffix
-
     if not re.fullmatch(r'\.[A-Za-z0-9._-]+', suffix):
         raise ValueError(f"New suffix '{suffix}' not a compatible suffix.")
-
-    return suffix

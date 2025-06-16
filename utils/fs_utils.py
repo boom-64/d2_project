@@ -106,8 +106,7 @@ def extract_zip(
         expected_file_count is not None or expected_dir_count is not None
     )
 
-    if not zip_path.is_file():
-        raise FileNotFoundError(f"File {zip_path} is not a file.")
+    core.validators.entry_is_file(zip_path)
 
     # Raise if 'extract_to' exists AND isn't a directory
     if extract_to.exists() and not extract_to.is_dir():
@@ -189,10 +188,7 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
 
     # Validate 'files_to_keep'
     for f in keep:
-        if not f.is_file():
-            raise FileNotFoundError(
-                f"Passed file-to-keep '{f}' does not exist."
-            )
+        core.validators.entry_is_file(f)
         if f.parent != directory:
             raise ValueError(
                 f"Passed file-to-keep '{f}' not in same directory as other "
@@ -212,8 +208,8 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
                 ) from e
 
 def rm_file(file: Path) -> None:
-    if not file.is_file():
-        raise ValueError(f"Path 'file={file}' does not refer to a file")
+    core.validators.entry_is_file(file)
+
     file.unlink()
 
 def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
@@ -233,8 +229,7 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
         Path: The new Path object with the appended suffix.
     """
     core.validators.entry_is_file(path)
-
-    suffix = core.validators.file_suffix(suffix=suffix)
+    core.validators.file_suffix(suffix)
 
     new_path: Path = path.with_name(path.name + suffix)
 
