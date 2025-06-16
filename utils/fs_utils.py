@@ -16,22 +16,22 @@ logging.basicConfig(
 
 def mv_item(
     *,
-    src: Path, 
+    src: Path,
     dst: Path,
     overwrite: bool = False
 ) -> None:
     """
     Move a file or directory from 'src' to 'dst'.
 
-    If 'dst' is an existing directory, the source item is moved inside it 
-    with the same name. If 'dst' is a file path, the source is moved/renamed 
+    If 'dst' is an existing directory, the source item is moved inside it
+    with the same name. If 'dst' is a file path, the source is moved/renamed
     to that path directly.
 
     Args:
         src (Path): Path to the source file or directory.
         dst (Path): Destination directory or file path.
-        overwrite (bool): If True, overwrite existing files or directories 
-            at the destination. If False and a target exists, raises 
+        overwrite (bool): If True, overwrite existing files or directories
+            at the destination. If False and a target exists, raises
                 FileExistsError.
 
     Raises:
@@ -67,24 +67,24 @@ def mv_item(
             shutil.rmtree(target_path)
         else:
             target_path.unlink()
-    
+
     shutil.move(str(src), str(target_path))
 
 def extract_zip(
     *,
-    zip_path: Path, 
+    zip_path: Path,
     extract_to: Path,
     overwrite: bool = False,
     expected_file_count: int | None = None,
     expected_dir_count: int | None = None
 ) -> None:
-    """ 
+    """
     Extracts an archive to a target dir w/ optnl file/dir count validation.
 
-    This function validates input paths and ensures the extraction 
-    destination exists. If 'expected_file_count' or 'expected_dir_count' is 
-    provided, the archive is first inspected and the actual file/directory 
-    counts are checked. Contents are then extracted to a temporary directory 
+    This function validates input paths and ensures the extraction
+    destination exists. If 'expected_file_count' or 'expected_dir_count' is
+    provided, the archive is first inspected and the actual file/directory
+    counts are checked. Contents are then extracted to a temporary directory
     and moved to the final destination.
 
     Args:
@@ -121,7 +121,7 @@ def extract_zip(
     with tempfile.TemporaryDirectory() as tmp:
         # Assign 'tmp_path' (path to tmp)
         tmp_path: Path = Path(tmp)
-        
+
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             # Execute if some count of dirs and/or files expected
             if has_expectation:
@@ -145,32 +145,32 @@ def extract_zip(
                         )
             # Extract archive (at 'zip_path') contents to 'tmp'
             zip_ref.extractall(tmp)
-        
-        # Move each file in 'tmp' to 'extract_to', overwriting existing 
+
+        # Move each file in 'tmp' to 'extract_to', overwriting existing
         # files if 'overwrite'==True
         for file in tmp_path.iterdir():
             mv_item(
-                src=file, 
-                dst=extract_to, 
-                overwrite=overwrite 
+                src=file,
+                dst=extract_to,
+                overwrite=overwrite
             )
 
 def rm_sibling_files(files_to_keep: set[Path]) -> None:
     """
-    Removes all files and symlinks in the directory containing the specified 
+    Removes all files and symlinks in the directory containing the specified
     files, except for the files listed in 'files_to_keep'.
 
     Args:
-        files_to_keep (set[Path]): A set of file paths to preserve. All 
+        files_to_keep (set[Path]): A set of file paths to preserve. All
             files must exist and reside in the same directory.
 
-    Returns: 
+    Returns:
         None.
 
     Raises:
         ValueError: If 'files_to_keep' is empty or if the files are not all
             in the same directory.
-        FileNotFoundError: If any path in 'files_to_keep' does not exist or 
+        FileNotFoundError: If any path in 'files_to_keep' does not exist or
             is not a file.
         OSError: If an error occurs while attempting to delete a file.
     """
@@ -226,7 +226,7 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
         path (Path): Path to the existing file.
         suffix (str): The suffix to append. Must start with a '.' or it will
             be prepended.
-        overwrite (bool): Whether to overwrite if the target file already 
+        overwrite (bool): Whether to overwrite if the target file already
             exists (defaults to False).
 
     Returns:
@@ -239,8 +239,8 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
     new_path: Path = path.with_name(path.name + suffix)
 
     return _update_filename(
-        old_path=path, 
-        new_path=new_path, 
+        old_path=path,
+        new_path=new_path,
         overwrite=overwrite
     )
 
@@ -252,7 +252,7 @@ def rm_final_suffix(*, path: Path, overwrite: bool = False) -> Path:
 
     Args:
         path (Path): Path to the existing file.
-        overwrite (bool): Whether to overwrite if the target file already 
+        overwrite (bool): Whether to overwrite if the target file already
             exists (defaults to False).
 
     Returns:
@@ -269,11 +269,11 @@ def rm_final_suffix(*, path: Path, overwrite: bool = False) -> Path:
     new_path: Path = path.with_suffix('')
 
     return _update_filename(
-        old_path=path, 
-        new_path=new_path, 
+        old_path=path,
+        new_path=new_path,
         overwrite=overwrite
     )
-    
+
 def _update_filename(old_path: Path, new_path: Path, overwrite: bool) -> Path:
     """
     Rename the file from 'old_path' to 'new_path'.
@@ -293,7 +293,7 @@ def _update_filename(old_path: Path, new_path: Path, overwrite: bool) -> Path:
     """
     if new_path.exists() and not overwrite:
         raise FileExistsError(f"File with path '{new_path}' already exists.")
- 
+
     old_path.replace(new_path)
 
     return new_path

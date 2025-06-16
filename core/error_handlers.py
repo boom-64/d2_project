@@ -2,20 +2,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import core.errors
+import core.errors # To raise custom errors
 
 if TYPE_CHECKING:
-    import core.schemas
+    import core.schemas # To type check response data
 
 def bungie_error_code(
     *,
-    code: int, 
-    msg: str, 
+    code: int,
+    msg: str,
     response_data: core.schemas.BungieResponseData
 ) -> None:
     """
     Validates the error_code to determine if the response indicates success.
-    
+
     Args:
         code (int): Error code provided by Bungie.
         msg (str): Error message provided by Bungie.
@@ -32,6 +32,6 @@ def bungie_error_code(
                 f"Issue with the API key. Error code: {code}, "
                 f"error message: '{msg}'.")
         raise core.errors.BungieAPIError(
-            msg="Unexpected Bungie API error.", 
+            msg="Unexpected Bungie API error.",
             response_data=response_data
         )

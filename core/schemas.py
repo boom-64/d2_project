@@ -7,16 +7,18 @@ from dataclasses import dataclass, field
 from json.decoder import JSONDecodeError
 from types import MappingProxyType
 from typing import TYPE_CHECKING
-from urllib.parse import urljoin, urlparse 
+from urllib.parse import urljoin, urlparse
 
 import validators
 
-import core.errors, core.error_handlers
+import core.errors
+import core.error_handlers
 
 if TYPE_CHECKING:
     from typing import Any
     from urllib.parse import ParseResult
     from requests import Response
+    from pathlib import Path
 
 @dataclass(frozen=True)
 class MD5Checksum:
@@ -40,12 +42,12 @@ class MD5Checksum:
         logging.warning(f"Checksum mismatch: {self.val} != {expected.val}.")
 
     @classmethod
-    def calc(cls, path: Any) -> 'MD5Checksum':
+    def calc(cls, path: Path) -> 'MD5Checksum':
         """
         Calculate the MD5 hash of the given file.
 
         Args:
-            path (Any): Path to the file. Raises if type not Path.
+            path (Path): Path to the file.
 
         Returns:
             MD5Checksum: The hexadecimal MD5 hash of the file contents.
@@ -61,7 +63,7 @@ class MD5Checksum:
 
         # Assign 'hasher' - an MD5 hash object.
         hasher = hashlib.md5()
-    
+
         with path.open('rb') as f:
             # Update 'hasher' with each 8KB chunk
             for chunk in iter(lambda: f.read(8192), b''):
@@ -75,15 +77,15 @@ class ParsedURL:
     """
     Represents a URL with its base URL and path components.
 
-    This class parses the provided URL into its base URL and path 
-    components. It also allows reconstruction of the full URL from these 
+    This class parses the provided URL into its base URL and path
+    components. It also allows reconstruction of the full URL from these
     components.
 
     Attributes:
         url (str): The full URL, including the base URL and path.
-        base_url (str): The base URL, consisting of the scheme (e.g., 
+        base_url (str): The base URL, consisting of the scheme (e.g.,
             'https') and netloc (e.g., 'example.com').
-        path (str): The path component of the URL. Defaults to an empty 
+        path (str): The path component of the URL. Defaults to an empty
             string if not provided.
 
     Methods:
@@ -95,7 +97,7 @@ class ParsedURL:
 
     Raises:
         TypeError: If any argument types are incorrect.
-        ValueError: If the reconstructed URL is valid according to the 
+        ValueError: If the reconstructed URL is valid according to the
             'validators.url()' check.
     """
     url: str
@@ -103,20 +105,19 @@ class ParsedURL:
     path: str
 
     @classmethod
-    def from_full_url(cls, full_url: Any) -> 'ParsedURL':
+    def from_full_url(cls, full_url: str) -> 'ParsedURL':
         """
         Creates a URL instance by parsing a full URL string.
 
         Args:
-            full_url (Any): The full URL to parse and validate. Will raise 
-                if type is not str.
+            full_url (str): The full URL to parse and validate.
 
         Returns:
-            URL: An instance of the URL class with parsed components.
+            ParsedURL: An instance of the URL class with parsed components.
 
         Raises:
-            ValueError: If the passed full_url is not a string or is not a 
-            valid URL according to validators.url().
+            ValueError: If the passed full_url is not a valid URL according
+                to validators.url().
         """
         full_url = full_url.strip().rstrip('/')
 
@@ -129,34 +130,31 @@ class ParsedURL:
         computed_path: str = parsed_url.path.strip('/')
 
         return cls(
-            url=full_url, 
-            base_url=computed_base_url, 
+            url=full_url,
+            base_url=computed_base_url,
             path=computed_path
         )
 
     @classmethod
-    def from_base_and_path(cls, *, base_url: Any, path: Any) -> 'ParsedURL':
+    def from_base_and_path(cls, *, base_url: str, path: str) -> 'ParsedURL':
         """
         Creates a URL instance from a base URL and a path.
 
         Args:
-            base_url (Any): The base URL, including scheme and netloc. Will 
-                raise if type is not str.
-            path (Any): The path component to append to the base URL. Will 
-                raise if type is not str.
+            base_url (str): The base URL, including scheme and netloc.
+            path (str): The path component to append to the base URL.
 
         Returns:
             URL: An instance of the URL class with the combined URL.
 
         Raises:
-            TypeError: If the passed values aren't strings.
-            ValueError: If the reconstructed URL is invalid according to 
+            ValueError: If the reconstructed URL is invalid according to
                 validators.url().
         """
         cleaned_base_url = base_url.strip().rstrip('/')
         cleaned_path = path.strip().strip('/')
 
-        computed_url = urljoin(cleaned_base_url + '/', cleaned_path) 
+        computed_url = urljoin(cleaned_base_url + '/', cleaned_path)
 
         parsed_url: ParseResult = urlparse(computed_url)
         full_path = parsed_url.path
@@ -171,19 +169,19 @@ class BungieResponseData:
     """
     Custom exception for errors returned by the Bungie API.
 
-    This exception is raised when an error occurs while interacting with 
-    the Bungie API. It includes an optional error code returned by the 
+    This exception is raised when an error occurs while interacting with
+    the Bungie API. It includes an optional error code returned by the
     API to help identify the issue.
 
     Attributes:
-        error_code (int | None): Optional error code provided by the Bungie 
+        error_code (int | None): Optional error code provided by the Bungie
             API.
 
     Args:
         message (str): Human-readable description of the error.
-        error_code (int | None, optional): Numeric code representing the 
+        error_code (int | None, optional): Numeric code representing the
             error, if available.
-    """ 
+    """
     _attrs_conversion = MappingProxyType({
         'error_code': 'ErrorCode',
         'throttle_seconds': 'ThrottleSeconds',
@@ -202,15 +200,15 @@ class BungieResponseData:
 
     def __init__(self, raw_data: Response) -> None:
         """
-        Initializes BungieResponseData by parsing and validating a 
+        Initializes BungieResponseData by parsing and validating a
         requests.Response object.
 
         Args:
-            raw_data (Response): The raw response object returned by 
+            raw_data (Response): The raw response object returned by
                 'requests.get()'.
 
         Raises:
-            ValueError: If the JSON decoding fails, required fields are 
+            ValueError: If the JSON decoding fails, required fields are
                 missing, or unexpected fields are present in the response.
         """
         try:
@@ -221,7 +219,7 @@ class BungieResponseData:
 
             if (diff := set(json_data) - set(self._attrs_conversion.values())):
                 raise ValueError(
-                    f"Unexpected components in response: " +
+                    "Unexpected components in response: " +
                     ", ".join(f"{k}={json_data[k]!r}" for k in diff)
                 )
 
@@ -231,11 +229,13 @@ class BungieResponseData:
             ) from e
 
         except KeyError as e:
-            raise ValueError(f"Missing required field in response: {e}.")
+            raise ValueError(
+                f"Missing required field in response: {e}."
+            ) from e
 
         for key, val in attrs.items():
             object.__setattr__(self, key, val)
-        
+
         core.error_handlers.bungie_error_code(
             code = self.error_code,
             msg = self.message,
