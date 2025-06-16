@@ -14,6 +14,8 @@ import core.validators
 
 import utils.fs_utils
 
+import config.settings
+
 if TYPE_CHECKING:
     from typing import IO
 
@@ -57,7 +59,7 @@ def request_bungie(
 def extract_mf_path(
     *,
     response: core.schemas.BungieResponseData,
-    lang: str
+    remote_config: config.settings.RemoteConfig
 ) -> str:
     """
     Function to extract manifest path from Bungie response data.
@@ -78,8 +80,9 @@ def extract_mf_path(
     Returns:
         str: Remote relative manifest path.
     """
+    configured_lang: str = remote_config.lang
     try:
-        return response.response['mobileWorldContentPaths'][lang]
+        return response.response['mobileWorldContentPaths'][configured_lang]
 
     except KeyError as e:
         match e.args[0]:
@@ -90,7 +93,7 @@ def extract_mf_path(
                 ) from e
 
             case missing_lang: # Catches all remaining KeyErrors
-                available = response.response['Response']['mobileWorldContentPaths'].keys()
+                available = response.response['mobileWorldContentPaths'].keys()
 
                 raise ValueError(
                     f"Language '{missing_lang}' currently unsupported. "
@@ -99,9 +102,7 @@ def extract_mf_path(
 
 def fetch_remote_mf_path(
     *,
-    url: core.schemas.ParsedURL,
-    key: str,
-    lang: str
+    remote_config: config.settings.RemoteConfig
 ) -> str:
     """
     Fetch the relative remote path to the latest manifest.
@@ -120,21 +121,26 @@ def fetch_remote_mf_path(
     Raises:
         ValueError: If passed URL is invalid.
     """
-    response = request_bungie(url=url, key=key)
+    response: core.schemas.BungieResponseData = request_bungie(
+        url=remote_config.mf_finder_url, 
+        key=remote_config.key
+    )
 
-    return extract_mf_path(response=response, lang=lang)
+    return extract_mf_path(response=response, remote_config=remote_config)
 
 def extract_remote_mf_name(
     *,
     remote_path: str,
-    expected_lang_dir: str,
-    lang: str,
-    strict: bool = True
+    remote_validation_config: config.settings.RemoteValidationConfig,
+    remote_config: config.settings.RemoteConfig,
+    flags: config.settings.Flags
 ) -> str:
     core.validators.remote_mf_dir(
         remote_path=remote_path,
-        strict=strict,
-        expected_dir=f"{expected_lang_dir}{lang}/"
+        strict=flags.strict,
+        expected_dir=str(
+            remote_validation_config.expected_remote_lang_dir
+        ) + remote_config.lang 
     )
     name = remote_path.split('/')[-1]
     core.validators.mf_name(name=name)
@@ -142,8 +148,8 @@ def extract_remote_mf_name(
 
 def fetch_current_mf_path(
     *,
-    mf_dir_path: Path,
-    mf_ext: str
+    local_config: config.settings.LocalConfig,
+    remote_config: config.settings.RemoteConfig
 ) -> Path | None:
     """
     Fetch the path to the active manifest database from the manifest directory.
@@ -166,22 +172,22 @@ def fetch_current_mf_path(
         NotADirectoryError: If the provided path passed is not a directory.
         FileExistsError: If two - too many - manifest files are found.
     """
-    mf_dir_path = Path(mf_dir_path)
-
-    if not mf_dir_path.is_dir():
-        raise NotADirectoryError(f"{mf_dir_path} is not a directory")
+    if not local_config.mf_dir_path.is_dir():
+        raise NotADirectoryError(
+            f"{local_config.mf_dir_path} is not a directory"
+        )
 
     mf_candidates = []
-    for entry in mf_dir_path.iterdir():
-        if entry.suffix == mf_ext and entry.is_file():
+    for entry in local_config.mf_dir_path.iterdir():
+        if entry.suffix == remote_config.mf_ext and entry.is_file():
             mf_candidates.append(entry)
 
             # Raise early once more than one candidate found
             if len(mf_candidates) > 1:
                 raise FileExistsError(
-                    f"Directory {mf_dir_path} contains too many compatible "
-                    f"manifest files, including both {mf_candidates[0]} and "
-                    f"{mf_candidates[1]}"
+                    f"Directory {local_config.mf_dir_path} contains too many "
+                    f"compatible manifest files, including both "
+                    f"{mf_candidates[0]} and {mf_candidates[1]}"
                 )
 
     # 'fetch_current_mf_path' returns None if no candidate found
@@ -243,7 +249,11 @@ def dl_bungie_content(
     except OSError as e:
         raise OSError(f"Error writing file {file.name}: {e}") from e
 
-def dl_mf_zip(*, output_path: Path, url: core.schemas.ParsedURL) -> None:
+def dl_mf_zip(
+    *, 
+    local_config: config.settings.LocalConfig,
+    url: core.schemas.ParsedURL
+) -> None:
     """
     Function to download manifest zip from Bungie
 
@@ -270,8 +280,6 @@ def dl_mf_zip(*, output_path: Path, url: core.schemas.ParsedURL) -> None:
         OSError: If an error occurs moving the file, or if an unexpected
             OSError occurs in temporary file cleanup.
     """
-    output_path = Path(output_path)
-
     tmp_path: Path | None = None
     write_success: bool = False # Stores write success of dl_bungie_content()
 
@@ -289,7 +297,7 @@ def dl_mf_zip(*, output_path: Path, url: core.schemas.ParsedURL) -> None:
         # Overwriting existing archives is fine
         utils.fs_utils.mv_item(
             src=tmp_path,
-            dst=output_path,
+            dst=local_config.zip_path,
             overwrite=True
         )
 
@@ -297,7 +305,7 @@ def dl_mf_zip(*, output_path: Path, url: core.schemas.ParsedURL) -> None:
         if not write_success:
             raise # Re-raise errors from dl_bungie_content()
         raise OSError(
-            f"Error moving file {tmp_path} to {output_path}: {e}"
+            f"Error moving file {tmp_path} to {local_config.mf_dir_path}: {e}"
         ) from e
 
     finally:
@@ -330,14 +338,10 @@ def extract_expected_md5(mf: Path) -> core.schemas.MD5Checksum:
 
 def fetch_mf_update_path(
     *,
-    key: str,
-    url: core.schemas.ParsedURL,
-    lang: str,
-    mf_dir_path: Path,
-    expected_remote_lang_dir: str,
-    mf_ext: str,
-    strict: bool = True,
-    force_update: bool = False
+    local_config: config.settings.LocalConfig,
+    remote_config: config.settings.RemoteConfig,
+    remote_validation_config: config.settings.RemoteValidationConfig,
+    flags: config.settings.Flags
 ) -> str | None:
     """
     Check with Bungie whether an update to the manifest is required.
@@ -358,8 +362,8 @@ def fetch_mf_update_path(
         None: If no update is required.
     """
     current_mf_path: Path | None = fetch_current_mf_path(
-        mf_dir_path=mf_dir_path,
-        mf_ext=mf_ext
+        local_config=local_config,
+        remote_config=remote_config
     )
 
     current_mf_name: str = ''
@@ -369,78 +373,67 @@ def fetch_mf_update_path(
 
         core.validators.mf_name(current_mf_name)
 
-    new_mf_path: str = fetch_remote_mf_path(url=url, key=key, lang=lang)
+    new_mf_path: str = fetch_remote_mf_path(remote_config=remote_config)
 
     new_mf_name: str = extract_remote_mf_name(
         remote_path=new_mf_path,
-        expected_lang_dir=expected_remote_lang_dir,
-        lang=lang,
-        strict=strict
+        remote_config=remote_config,
+        remote_validation_config=remote_validation_config,
+        flags=flags
     )
 
-    if current_mf_name == new_mf_name and not force_update:
+    if current_mf_name == new_mf_name and not flags.force_update:
         return None
 
     return new_mf_path
 
 def update_manifest(
     *,
-    key: str,
-    dl_url_root: str,
-    mf_finder_url: core.schemas.ParsedURL,
-    expected_remote_lang_dir: str,
-    zip_path: Path,
-    mf_dir_path: Path,
-    mf_ext: str,
-    bak_ext: str,
-    lang: str,
-    strict: bool = True,
-    force_update: bool = False
+    remote_config: config.settings.RemoteConfig,
+    remote_validation_config: config.settings.RemoteValidationConfig,
+    local_config: config.settings.LocalConfig,
+    flags: config.settings.Flags
 ):
-    if not mf_dir_path.is_dir():
+    if not local_config.mf_dir_path.is_dir():
         raise NotADirectoryError(
-            f"Path '{mf_dir_path}' does not refer to a directory."
+            f"Path '{local_config.mf_dir_path}' does not refer to a directory."
         )
 
     current_mf_path: Path | None = None
 
     new_mf_remote_path = fetch_mf_update_path(
-        key=key,
-        url=mf_finder_url,
-        expected_remote_lang_dir=expected_remote_lang_dir,
-        lang=lang,
-        force_update=force_update,
-        mf_dir_path=mf_dir_path,
-        mf_ext=mf_ext,
-        strict=strict
+        remote_config=remote_config,
+        local_config=local_config,
+        remote_validation_config=remote_validation_config,
+        flags=flags
     )
 
     if not new_mf_remote_path:
         return None
 
     dl_url = core.schemas.ParsedURL.from_base_and_path(
-        base_url=dl_url_root,
+        base_url=remote_config.base_url.url,
         path=new_mf_remote_path
     )
 
-    dl_mf_zip(output_path=zip_path, url=dl_url)
+    dl_mf_zip(local_config=local_config, url=dl_url)
 
     current_mf_path: Path | None = fetch_current_mf_path(
-        mf_dir_path=mf_dir_path,
-        mf_ext=mf_ext
+        local_config=local_config,
+        remote_config=remote_config
     )
 
     if current_mf_path:
         current_mf_path = utils.fs_utils.append_suffix(
             path=current_mf_path,
-            suffix=bak_ext,
+            suffix=local_config.bak_ext,
             overwrite=True
         )
 
     try:
         utils.fs_utils.extract_zip(
-            zip_path=zip_path,
-            extract_to=mf_dir_path,
+            zip_path=local_config.zip_path,
+            extract_to=local_config.mf_dir_path,
             expected_file_count=1,
             expected_dir_count=0
         )
@@ -453,15 +446,15 @@ def update_manifest(
             utils.fs_utils.rm_final_suffix(path=current_mf_path)
         raise
 
-    utils.fs_utils.rm_file(zip_path)
+    utils.fs_utils.rm_file(local_config.zip_path)
 
     new_mf_local_path = fetch_current_mf_path(
-        mf_dir_path=mf_dir_path,
-        mf_ext=mf_ext
+        local_config=local_config,
+        remote_config=remote_config
     )
     if not new_mf_local_path:
         raise FileNotFoundError(
-            f"No manifest file found in {mf_dir_path}."
+            f"No manifest file found in {local_config.mf_dir_path}."
         )
 
     expected_md5: core.schemas.MD5Checksum = extract_expected_md5(
@@ -470,4 +463,4 @@ def update_manifest(
     computed_md5: core.schemas.MD5Checksum = core.schemas.MD5Checksum.calc(
         path=new_mf_local_path
     )
-    computed_md5.assert_equals(expected=expected_md5, strict=strict)
+    computed_md5.assert_equals(expected=expected_md5, strict=flags.strict)
