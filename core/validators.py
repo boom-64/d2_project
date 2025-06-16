@@ -61,10 +61,11 @@ def remote_mf_dir(
         )
     # Log
 
-def mf_name(name: str) -> None:
-    if not re.fullmatch(r"^world_sql_content_[a-fA-F0-9]{32}\.content$", name):
+def file_name(*, name: str, pattern: str) -> None:
+    if not re.fullmatch(pattern, name):
         raise ValueError(
-            f"File name '{name}' does not match expected manifest name format."
+            f"File name '{name}' does not match expected file name format: "
+            f"{pattern}."
         )
 
 def entry_is_file(path: Path) -> None:

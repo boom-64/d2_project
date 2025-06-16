@@ -42,6 +42,7 @@ class Flags:
 class RemoteValidationConfig:
     expected_remote_lang_dir: str
     expected_mf_ext: str
+    expected_mf_name_pattern: str
 
 #------------------------------------------------------------------------------
 
@@ -61,8 +62,10 @@ REMOTE = RemoteConfig(
 
 REMOTE_VALIDATION = RemoteValidationConfig(
     expected_mf_ext='.content',
-    expected_remote_lang_dir='/common/destiny_content/sqlite/'
+    expected_remote_lang_dir='/common/destiny_content/sqlite/',
+    expected_mf_name_pattern=r"^world_sql_content_[a-fA-F0-9]{32}\.content$"
 )
+
 FLAGS = Flags(
     strict=True,
     force_update=True

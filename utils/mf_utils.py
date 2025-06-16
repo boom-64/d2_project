@@ -143,7 +143,10 @@ def extract_remote_mf_name(
         ) + remote_config.lang 
     )
     name = remote_path.split('/')[-1]
-    core.validators.mf_name(name=name)
+    core.validators.file_name(
+        name=name,
+        pattern=remote_validation_config.expected_mf_name_pattern
+    )
     return name
 
 def fetch_current_mf_path(
@@ -320,7 +323,10 @@ def dl_mf_zip(
                 if e.errno not in (errno.ENOENT, errno.EPERM, errno.EACCES):
                     raise
 
-def extract_expected_md5(mf: Path) -> core.schemas.MD5Checksum:
+def extract_expected_md5(
+    mf: Path, 
+    remote_validation_config: config.settings.RemoteValidationConfig
+) -> core.schemas.MD5Checksum:
     """
     Extract the expected MD5 hash from the manifest file name.
 
@@ -332,7 +338,10 @@ def extract_expected_md5(mf: Path) -> core.schemas.MD5Checksum:
     Returns:
         str: The expected MD5 hash string extracted from the filename.
     """
-    core.validators.mf_name(mf.name)
+    core.validators.file_name(
+        name=mf.name,
+        pattern=remote_validation_config.expected_mf_name_pattern
+    )
 
     return core.schemas.MD5Checksum(mf.stem.split('_')[-1])
 
@@ -371,7 +380,10 @@ def fetch_mf_update_path(
     if current_mf_path:
         current_mf_name = current_mf_path.name
 
-        core.validators.mf_name(current_mf_name)
+        core.validators.file_name(
+            name=current_mf_name,
+            pattern=remote_validation_config.expected_mf_name_pattern
+        )
 
     new_mf_path: str = fetch_remote_mf_path(remote_config=remote_config)
 
@@ -458,7 +470,8 @@ def update_manifest(
         )
 
     expected_md5: core.schemas.MD5Checksum = extract_expected_md5(
-        mf=new_mf_local_path
+        mf=new_mf_local_path,
+        remote_validation_config=remote_validation_config
     )
     computed_md5: core.schemas.MD5Checksum = core.schemas.MD5Checksum.calc(
         path=new_mf_local_path
