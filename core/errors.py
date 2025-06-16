@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import core.schemas
+    import core.schemas #Need to type-check exception arguments
 
 class DownloadError(Exception):
     """

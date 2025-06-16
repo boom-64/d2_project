@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 from pathlib import Path
 
-from core.schemas import ParsedURL
-from utils.mf_utils import update_manifest
+import core.schemas
+import utils.mf_utils
 
-update_manifest(
+utils.mf_utils.update_manifest(
     key='d4705221d56b4040b8c5c6b4ebd58757',
     dl_url_root='https://www.bungie.net',
-    mf_finder_url= ParsedURL.from_base_and_path(
+    mf_finder_url= core.schemas.ParsedURL.from_base_and_path(
         base_url='https://www.bungie.net', 
         path='/Platform/Destiny/Manifest'
     ),

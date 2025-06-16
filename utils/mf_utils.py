@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import errno
 import shutil
 import tempfile
@@ -7,7 +9,7 @@ from typing import TYPE_CHECKING
 import requests
 
 import core.errors, core.schemas, core.validators
-import utils.fs_utils, utils.suffix_utils
+import utils.fs_utils 
 
 if TYPE_CHECKING:
     from typing import IO
@@ -426,7 +428,7 @@ def update_manifest(
     )
 
     if current_mf_path:
-        current_mf_path = utils.suffix_utils.append(
+        current_mf_path = utils.fs_utils.append_suffix(
             path=current_mf_path, 
             suffix=bak_ext,
             overwrite=True
@@ -445,7 +447,7 @@ def update_manifest(
             utils.fs_utils.rm_sibling_files(
                 files_to_keep={current_mf_path.resolve()}
             )
-            utils.suffix_utils.rm_final(path=current_mf_path)
+            utils.fs_utils.rm_final_suffix(path=current_mf_path)
         raise
 
     utils.fs_utils.rm_file(zip_path)
