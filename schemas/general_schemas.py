@@ -1,45 +1,57 @@
 from __future__ import annotations
 
+# ==== Standard Libraries ====
+
 import hashlib
 import logging
-import re
-from dataclasses import dataclass, field
-from json.decoder import JSONDecodeError
-from types import MappingProxyType
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
+from urllib.parse import urlparse
+
+# ==== Non-Standard Libraries ====
 
 import validators
 
+# ==== Local Libraries ====
+
 import core.errors
-import core.error_handlers
 import core.validators
+import utils.general_utils
+import utils.mf_utils
+
+# ==== Type Checking ====
 
 if TYPE_CHECKING:
     from typing import Any
     from urllib.parse import ParseResult
-    from requests import Response
     from pathlib import Path
+
+# ==== Classes ====
 
 @dataclass(frozen=True)
 class MD5Checksum:
     val: str
 
-    def __post_init__(self) -> None:
-        lc_val: str = self.val.lower()
+    # ==== Initialisation and Validation ====
 
-        if not re.fullmatch(r'^[a-f0-9]{32}$', lc_val):
-            raise ValueError(f"Invalid MD5 checksum: {self.val}")
+    def __post_init__(self) -> None:
+        lc_val = core.validators.lc_checksum(self.val)
 
         object.__setattr__(self, 'val', lc_val)
+
+
+    # ==== Public Methods ====
 
     def assert_equals(self, *, expected: Any, strict: bool=False):
         if self == expected:
             return
+
         if strict:
-            raise core.errors.ChecksumMismatchError(
+            raise self.MismatchError(
                 computed=self, expected=expected
             )
+
         logging.warning(f"Checksum mismatch: {self.val} != {expected.val}.")
 
     @classmethod
@@ -68,6 +80,37 @@ class MD5Checksum:
 
         # Return 'hexdigest()' of 'hasher' MD5 hash object
         return cls(hasher.hexdigest())
+
+    # ==== Custom Exceptions ====
+
+    class MismatchError(Exception):
+        """
+        Custom exception for checksum mismatches.
+
+        This exception is raised when a calculated checksum does not match
+        the expected checksum. It includes both the expected and actual
+        checksums.
+
+        Attributes/args:
+            expected (core.schemas.MD5Checksum): Expected checksum.
+            computed (core.schemas.MD5Checksum): Actual checksum calculated.
+        """
+        expected: MD5Checksum
+        computed: MD5Checksum
+
+        def __init__(
+            self,
+            *,
+            expected: MD5Checksum,
+            computed: MD5Checksum
+        ) -> None:
+            self.expected = expected
+            self.computed = computed
+
+            super().__init__(
+                f"Checksum mismatch: expected {self.expected.val}, got "
+                f"{self.computed.val}."
+            )
 
 @dataclass(frozen=True)
 class ParsedURL:
@@ -100,6 +143,8 @@ class ParsedURL:
     url: str
     base_url: str
     path: str
+
+    # ==== Public Methods ====
 
     @classmethod
     def from_full_url(cls, full_url: str) -> 'ParsedURL':
@@ -161,80 +206,3 @@ class ParsedURL:
 
         return cls(url=computed_url, base_url=cleaned_base_url, path=full_path)
 
-@dataclass(frozen=True, init=False)
-class BungieResponseData:
-    """
-    Custom exception for errors returned by the Bungie API.
-
-    This exception is raised when an error occurs while interacting with
-    the Bungie API. It includes an optional error code returned by the
-    API to help identify the issue.
-
-    Attributes:
-        error_code (int | None): Optional error code provided by the Bungie
-            API.
-
-    Args:
-        message (str): Human-readable description of the error.
-        error_code (int | None, optional): Numeric code representing the
-            error, if available.
-    """
-    _attrs_conversion = MappingProxyType({
-        'error_code': 'ErrorCode',
-        'throttle_seconds': 'ThrottleSeconds',
-        'error_status': 'ErrorStatus',
-        'message': 'Message',
-        'message_data': 'MessageData',
-        'response': 'Response'
-    })
-
-    error_code: int = field(init=False)
-    throttle_seconds: int = field(init=False)
-    error_status: str = field(init=False)
-    message: str = field(init=False)
-    message_data: dict[str, Any] = field(init=False)
-    response: dict[str, Any] = field(init=False)
-
-    def __init__(self, raw_data: Response) -> None:
-        """
-        Initializes BungieResponseData by parsing and validating a
-        requests.Response object.
-
-        Args:
-            raw_data (Response): The raw response object returned by
-                'requests.get()'.
-
-        Raises:
-            ValueError: If the JSON decoding fails, required fields are
-                missing, or unexpected fields are present in the response.
-        """
-        try:
-            json_data = raw_data.json()
-            attrs = {
-                k: json_data[v] for k, v in self._attrs_conversion.items()
-            }
-
-            if (diff := set(json_data) - set(self._attrs_conversion.values())):
-                raise ValueError(
-                    "Unexpected components in response: " +
-                    ", ".join(f"{k}={json_data[k]!r}" for k in diff)
-                )
-
-        except JSONDecodeError as e:
-            raise ValueError(
-                f"Failed to parse json response: {e}"
-            ) from e
-
-        except KeyError as e:
-            raise ValueError(
-                f"Missing required field in response: {e}."
-            ) from e
-
-        for key, val in attrs.items():
-            object.__setattr__(self, key, val)
-
-        core.error_handlers.bungie_error_code(
-            code = self.error_code,
-            msg = self.message,
-            response_data=json_data
-        )

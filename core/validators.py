@@ -1,10 +1,24 @@
 from __future__ import annotations
 
+# ==== Standard Libraries ====
+
 import re
 from typing import TYPE_CHECKING
 
+# ==== Type Checking ====
+
 if TYPE_CHECKING:
     from pathlib import Path
+
+# ==== Functions ====
+
+def lc_checksum(checksum_candidate: str) -> str:
+    lc_val: str = checksum_candidate.lower()
+
+    if re.fullmatch(r'^[a-f0-9]{32}$', lc_val):
+        return lc_val
+
+    raise ValueError(f"Invalid MD5 checksum: {checksum_candidate}")
 
 def expected_entry_count(
     *,
@@ -47,19 +61,6 @@ def expected_entry_count(
             f"Unexpected '{entry_type}' count in '{entry_source}': "
             f"expected {expected}, found {actual}."
         )
-
-def remote_mf_dir(
-    *,
-    remote_path: str,
-    expected_dir: str,
-    strict: bool = True
-) -> None:
-    if not remote_path.startswith(expected_dir) and strict:
-        raise ValueError(
-            f"Invalid remote manifest format: '{remote_path}'. "
-            f"Bungie may have changed manifest path format."
-        )
-    # Log
 
 def file_name(*, name: str, pattern: str) -> None:
     if not re.fullmatch(pattern, name):

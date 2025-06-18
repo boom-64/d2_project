@@ -1,18 +1,27 @@
 from __future__ import annotations
 
+# ==== Standard Libraries ====
+
 import logging
 import shutil
 import tempfile
 import zipfile
 from pathlib import Path
 
+# ==== Local Modules ====
+
+import core.errors
 import core.validators
+
+# ==== Logging ====
 
 logging.basicConfig(
     filename='app.log',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+# ==== Functions ====
 
 def mv_item(
     *,
