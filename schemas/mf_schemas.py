@@ -12,10 +12,10 @@ from typing import TYPE_CHECKING
 
 import config.sanity
 import config.settings
-import core.errors
+# import core.errors
 import core.validators
-import utils.general_utils
-import utils.mf_utils
+# import utils.general_utils
+# import utils.mf_utils
 import schemas.sanity_checkers
 import schemas.general_schemas
 
@@ -193,7 +193,8 @@ class InstalledManifestData:
     is_pattern_expected: bool = False
     extension: str = field(init=False)
     computed_checksum: schemas.general_schemas.MD5Checksum = field(init=False)
-    expected_checksum: str = field(init=False)
+    expected_checksum: schemas.general_schemas.MD5Checksum = field(init=False)
+    checksum_match: bool = field(init=False)
 
     # ==== Initialisation ====
 
@@ -203,6 +204,8 @@ class InstalledManifestData:
         self._determine_pattern_expected()
         self._extract_and_set_extension()
         self._extract_and_set_expected_checksum()
+        self._compute_and_set_computed_checksum()
+        self._compute_and_set_checksum_match()
 
     def _find_and_set_path(self) -> None:
         if not config.settings.Exposed.mf_dir_path.is_dir():
@@ -213,7 +216,9 @@ class InstalledManifestData:
         mf_candidates = []
         for entry in config.settings.Exposed.mf_dir_path.iterdir():
             if (
-                entry.suffix == config.settings.ManifestNameProperties.extension
+                entry.suffix == (
+                    config.settings.ManifestNameProperties.extension
+                )
                 and entry.is_file()
             ):
                 mf_candidates.append(entry)
@@ -221,12 +226,13 @@ class InstalledManifestData:
                 # Raise early once more than one candidate found
                 if len(mf_candidates) > 1:
                     raise FileExistsError(
-                        f"Directory {config.settings.Exposed.mf_dir_path} contains too many "
-                        f"compatible manifest files, including both "
-                        f"{mf_candidates[0]} and {mf_candidates[1]}"
+                        f"Directory {config.settings.Exposed.mf_dir_path} "
+                        f"contains too many compatible manifest files, "
+                        f"including both {mf_candidates[0]} and "
+                        f"{mf_candidates[1]}."
                     )
 
-        # 'fetch_current_mf_path' returns None if no candidate found
+        # Returns None if no candidate found
         if not mf_candidates:
             object.__setattr__(self, 'path', None)
             return None
@@ -235,28 +241,57 @@ class InstalledManifestData:
         object.__setattr__(self, 'path', mf_candidates[0])
 
     def _extract_and_set_name(self) -> None:
+        name: str | None = None
+
         if self.path:
-            object.__setattr__(self, 'name', self.path.name)
+            name = self.path.name
+
+        object.__setattr__(self, 'name', name)
 
     def _determine_pattern_expected(self) -> None:
-        if (
-            self.path
-            and schemas.sanity_checkers.mf_filename(
+        if self.path:
+            schemas.sanity_checkers.mf_filename(
                 name=self.name,
                 expected_pattern=config.sanity.expected_mf_name_pattern
             )
-        ):
+
             object.__setattr__(self, 'is_pattern_expected', True)
 
     def _extract_and_set_extension(self):
+        extension: str | None = None
         if self.is_pattern_expected:
-            object.__setattr__(self, 'extension', self.path.suffix)
+            extension = self.path.suffix
+        object.__setattr__(self, 'extension', extension)
 
     def _extract_and_set_expected_checksum(self):
+        expected_checksum: schemas.general_schemas.MD5Checksum | None = None
+        expected_checksum_str: str
+
         if self.is_pattern_expected:
-            expected_checksum = self.path.stem.split('_')[-1]
-        else:
-            expected_checksum = self.path.stem[-32:]
-            core.validators.lc_checksum(expected_checksum)
+            expected_checksum_str = self.path.stem.split('_')[-1]
+            expected_checksum = schemas.general_schemas.MD5Checksum(
+                expected_checksum_str
+            )
+        elif self.path:
+            expected_checksum_str = self.path.stem[-32:]
+            core.validators.lc_checksum(expected_checksum_str)
+            expected_checksum = schemas.general_schemas.MD5Checksum(
+                expected_checksum_str
+            )
 
         object.__setattr__(self, 'expected_checksum', expected_checksum)
+
+    def _compute_and_set_computed_checksum(self):
+        computed_checksum: schemas.general_schemas.MD5Checksum | None = None
+        if self.path:
+            computed_checksum = (
+                schemas.general_schemas.MD5Checksum.calc(self.path)
+            )
+        object.__setattr__(self, 'computed_checksum', computed_checksum)
+
+    def _compute_and_set_checksum_match(self):
+        checksum_match: bool = False
+        if self.expected_checksum and self.computed_checksum:
+            if self.computed_checksum == self.expected_checksum:
+                checksum_match = True
+        object.__setattr__(self, 'checksum_match', checksum_match)

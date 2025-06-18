@@ -3,7 +3,7 @@ from __future__ import annotations
 # ==== Standard Libraries ====
 
 import hashlib
-import logging
+# import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin
@@ -15,10 +15,10 @@ import validators
 
 # ==== Local Libraries ====
 
-import core.errors
+# import core.errors
 import core.validators
-import utils.general_utils
-import utils.mf_utils
+# import utils.general_utils
+# import utils.mf_utils
 
 # ==== Type Checking ====
 
@@ -40,19 +40,7 @@ class MD5Checksum:
 
         object.__setattr__(self, 'val', lc_val)
 
-
     # ==== Public Methods ====
-
-    def assert_equals(self, *, expected: Any, strict: bool=False):
-        if self == expected:
-            return
-
-        if strict:
-            raise self.MismatchError(
-                computed=self, expected=expected
-            )
-
-        logging.warning(f"Checksum mismatch: {self.val} != {expected.val}.")
 
     @classmethod
     def calc(cls, path: Path) -> 'MD5Checksum':

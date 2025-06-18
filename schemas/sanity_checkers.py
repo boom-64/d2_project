@@ -1,10 +1,10 @@
 # ==== Local Modules ====
 
-import config.sanity
-import core.errors
+# import config.sanity
+# import core.errors
 import core.validators
-import utils.general_utils
-import utils.mf_utils
+# import utils.general_utils
+#import utils.mf_utils
 
 # ==== Functions ====
 
@@ -24,5 +24,8 @@ def remote_mf_dir(
 def mf_filename(
     name: str,
     expected_pattern: str
-) -> bool:
-    if not utils.mf_utils.
+) -> None:
+    core.validators.file_name(
+        name=name,
+        pattern=expected_pattern
+    )
