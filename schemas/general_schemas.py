@@ -3,7 +3,6 @@ from __future__ import annotations
 # ==== Standard Libraries ====
 
 import hashlib
-# import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin
@@ -23,7 +22,6 @@ import core.validators
 # ==== Type Checking ====
 
 if TYPE_CHECKING:
-    from typing import Any
     from urllib.parse import ParseResult
     from pathlib import Path
 
@@ -32,13 +30,22 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class MD5Checksum:
     val: str
+    from_calc: bool = False
 
     # ==== Initialisation and Validation ====
 
     def __post_init__(self) -> None:
-        lc_val = core.validators.lc_checksum(self.val)
+        lc_val = self.val.lower()
+
+        if not self.from_calc:
+            core.validators.lc_checksum(lc_val)
 
         object.__setattr__(self, 'val', lc_val)
+
+    def __eq__(self, other):
+        if not isinstance(other, MD5Checksum):
+            return NotImplemented
+        return self.val == other.val
 
     # ==== Public Methods ====
 
@@ -67,7 +74,7 @@ class MD5Checksum:
                 hasher.update(chunk)
 
         # Return 'hexdigest()' of 'hasher' MD5 hash object
-        return cls(hasher.hexdigest())
+        return cls(hasher.hexdigest(), from_calc=True)
 
     # ==== Custom Exceptions ====
 

@@ -12,13 +12,9 @@ if TYPE_CHECKING:
 
 # ==== Functions ====
 
-def lc_checksum(checksum_candidate: str) -> str:
-    lc_val: str = checksum_candidate.lower()
-
-    if re.fullmatch(r'^[a-f0-9]{32}$', lc_val):
-        return lc_val
-
-    raise ValueError(f"Invalid MD5 checksum: {checksum_candidate}")
+def lc_checksum(lc_candidate: str) -> None:
+    if not re.fullmatch(r'^[a-f0-9]{32}$', lc_candidate):
+        raise ValueError(f"Invalid MD5 checksum: {lc_candidate}")
 
 def expected_entry_count(
     *,

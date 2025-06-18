@@ -1,15 +1,45 @@
 # ==== Standard Libraries ====
 
 from dataclasses import dataclass
+from dataclasses import field
+from string import Template
 from pathlib import Path
 
 # ==== Classes ====
 
-@dataclass
+@dataclass(frozen=True)
 class ManifestNameProperties:
-    expected_mf_name_pattern = r"^world_sql_content_[a-fA-F0-9]{32}\.content$"
-    extension = '.content'
-    starts_with = 'world_sql_content_'
+
+    # ==== Initialised Attributes ====
+
+    expected_mf_name_pattern: Template = Template(
+        "^${starts_with}[a-fA-F0-9]${extension}$$"
+    )
+    extension: str = '.content'
+    starts_with: str = 'world_sql_content_'
+
+    # ==== Uninitialised Attributes ====
+
+    expected_mf_name_regex: str = field(init=False)
+
+    # ==== Post-Initialisation ====
+
+    def __post_init__(self):
+        self._set_expected_mf_name_pattern()
+
+    # ==== Private Methods ====
+
+    def _set_expected_mf_name_pattern(self):
+        object.__setattr__(
+            self,
+            'expected_mf_name_regex',
+            self.expected_mf_name_pattern.substitute(
+                starts_with=self.starts_with,
+                extension=self.extension
+            )
+        )
+
+print(ManifestNameProperties())
 
 @dataclass(frozen=True)
 class Assumed:
