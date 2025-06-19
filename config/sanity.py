@@ -1,2 +1,0 @@
-expected_remote_lang_dir = '/common/destiny_content/sqlite/',
-expected_mf_name_pattern = r"^world_sql_content_[a-fA-F0-9]{32}\.content$"

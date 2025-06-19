@@ -10,8 +10,7 @@ from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
 
-import config.sanity
-import config.settings
+import config
 # import core.errors
 import core.validators
 import utils.general_utils
@@ -157,7 +156,7 @@ class ManifestLocationData(BungieResponseData):
         self._construct_mf_url()
 
     def _set_lang(self):
-        object.__setattr__(self, 'lang', config.settings.Exposed.lang)
+        object.__setattr__(self, 'lang', config.settings.mf_lang)
 
     def _validate_response_structure(self):
         pass
@@ -181,7 +180,7 @@ class ManifestLocationData(BungieResponseData):
             self,
             'mf_url',
             schemas.general_schemas.ParsedURL.from_base_and_path(
-                base_url=config.settings.Assumed.mf_base_url,
+                base_url=config.settings.mf_loc_base_url,
                 path=self.mf_remote_path
             )
         )
@@ -208,16 +207,16 @@ class InstalledManifestData:
         self._compute_and_set_checksum_match()
 
     def _find_and_set_path(self) -> None:
-        if not config.settings.Exposed.mf_dir_path.is_dir():
+        if not config.settings.mf_dir_path.is_dir():
             raise NotADirectoryError(
-                f"{config.settings.Exposed.mf_dir_path} is not a directory"
+                f"{config.settings.mf_dir_path} is not a directory"
             )
 
         mf_candidates = []
-        for entry in config.settings.Exposed.mf_dir_path.iterdir():
+        for entry in config.settings.mf_dir_path.iterdir():
             if (
                 entry.suffix == (
-                    config.settings.ManifestNameProperties.extension
+                    config.settings.extension
                 )
                 and entry.is_file()
             ):
@@ -226,7 +225,7 @@ class InstalledManifestData:
                 # Raise early once more than one candidate found
                 if len(mf_candidates) > 1:
                     raise FileExistsError(
-                        f"Directory {config.settings.Exposed.mf_dir_path} "
+                        f"Directory {config.settings.mf_dir_path} "
                         f"contains too many compatible manifest files, "
                         f"including both {mf_candidates[0]} and "
                         f"{mf_candidates[1]}."
@@ -252,7 +251,7 @@ class InstalledManifestData:
         if self.path:
             schemas.sanity_checkers.mf_filename(
                 name=self.name,
-                expected_pattern=config.sanity.expected_mf_name_pattern
+                expected_pattern=sanity.expected_mf_name_pattern
             )
 
             object.__setattr__(self, 'is_pattern_expected', True)
@@ -298,9 +297,9 @@ class InstalledManifestData:
 
     def update_manifest(self, mf_loc_data: ManifestLocationData) -> None:
         utils.mf_utils.dl_mf_zip(
-            zip_path=config.settings.Exposed.zip_path,
+            zip_path=config.settings.zip_path,
             url=schemas.general_schemas.ParsedURL.from_base_and_path(
-                base_url=config.settings.Assumed.mf_base_url,
+                base_url=config.settings.mf_loc_base_url,
                 path=mf_loc_data.mf_remote_path
             ).url
         )
@@ -309,14 +308,14 @@ class InstalledManifestData:
 
         new_path = utils.general_utils.append_suffix(
             path=self.path,
-            suffix=config.settings.Exposed.bak_ext
+            suffix=config.settings.mf_bak_ext
         )
 
         object.__setattr__(self, 'path', new_path)
 
         utils.general_utils.extract_zip(
-            zip_path=config.settings.Exposed.zip_path,
-            extract_to=config.settings.Exposed.mf_dir_path,
+            zip_path=config.settings.zip_path,
+            extract_to=config.settings.mf_dir_path,
             expected_dir_count=0,
             expected_file_count=1,
         )
