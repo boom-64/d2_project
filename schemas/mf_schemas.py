@@ -15,7 +15,6 @@ import config
 import core.validators
 import utils.general_utils
 import utils.mf_utils
-import schemas.sanity_checkers
 import schemas.general_schemas
 
 # ==== Type Checking ====
@@ -152,6 +151,9 @@ class ManifestLocationData(BungieResponseData):
         self._validate_response_structure()
         self._set_lang()
         self._extract_mf_path()
+        config.sanity.check_remote_mf_dir(
+            remote_path=self.mf_remote_path
+        )
         self._extract_mf_name()
         self._construct_mf_url()
 
@@ -249,9 +251,9 @@ class InstalledManifestData:
 
     def _determine_pattern_expected(self) -> None:
         if self.path:
-            schemas.sanity_checkers.mf_filename(
+            core.validators.file_name(
                 name=self.name,
-                expected_pattern=config.settings.expected_mf_name_regex
+                pattern=config.settings.expected_mf_name_regex
             )
 
             object.__setattr__(self, 'is_pattern_expected', True)

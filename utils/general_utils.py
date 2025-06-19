@@ -3,15 +3,25 @@ from __future__ import annotations
 # ==== Standard Libraries ====
 
 import logging
+import re
 import shutil
 import tempfile
+import textwrap
 import zipfile
+from dataclasses import fields
 from pathlib import Path
+from types import MappingProxyType
+from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
 
 # import core.errors
 import core.validators
+
+# ==== Type Checking ====
+
+if TYPE_CHECKING:
+    from typing import Any, Set
 
 # ==== Logging ====
 
@@ -301,3 +311,70 @@ def _update_filename(old_path: Path, new_path: Path, overwrite: bool) -> Path:
     old_path.replace(new_path)
 
     return new_path
+
+# ==== TOML Functions ====
+
+def regenerate_toml(
+    *,
+    data_class: Any,
+    path: Path,
+    exclude_fields: Set[str] | None = None
+) -> None:
+    with open(path, 'w') as toml_open:
+        for field in fields(data_class):
+            name = field.name
+            if (exclude_fields is not None) and (name in exclude_fields):
+                continue
+            default = field.default
+
+            serialised_lines = _toml_serialise_value(
+                data_class = data_class,
+                value = default
+            ).splitlines()
+
+            toml_open.write(f"# {name} = {serialised_lines[0]}\n")
+            for line in serialised_lines[1:]:
+                toml_open.write(f"# {line}\n")
+
+def _needs_triple_quotes(s: str) -> bool:
+    special_chars = ['\n', '\r', '"', "'"]
+
+    return any(c in s for c in special_chars)
+
+def _is_bare_key(s: str) -> bool:
+    return re.fullmatch(r'[A-Za-z0-9_-]+', s) is not None
+
+def _toml_serialise_value(data_class: Any, value: Any) -> str:
+    if isinstance(value, str):
+        if _needs_triple_quotes(value):
+            escaped = value.replace('"""', '\\"""')
+            return '"""\n' + textwrap.indent(escaped, '    ') + '\n"""'
+
+        else:
+            return f'"{value}"'
+
+    elif isinstance(value, bool):
+        return "true" if value else "false"
+    elif isinstance(value, Path):
+        return f'"{value}"'
+    elif isinstance(value, (int, float)):
+        return str(value)
+
+    elif isinstance(value, MappingProxyType):
+        if not value:
+            return "{ }"
+
+        parts = []
+
+        for key, val in value.items():
+            bare_key = key
+            if not _is_bare_key(key):
+                bare_key = f'"{key}"'
+
+            parts.append(f'{bare_key} = {_toml_serialise_value(data_class=data_class, value=val)}')
+
+        return "{ " + ", ".join(parts) + " }"
+
+    else:
+        raise TypeError(f"Unsupported TOML type: {type(value)}")
+

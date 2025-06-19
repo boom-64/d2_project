@@ -12,6 +12,14 @@ if TYPE_CHECKING:
 
 # ==== Functions ====
 
+def str_starts_with(value: str, starts_with: str, *, strict: bool) -> None:
+    if not value.startswith(starts_with):
+        if strict:
+            raise ValueError(
+                f"String {value} does not begin with {starts_with} as expected."
+            )
+        # Log
+
 def lc_checksum(lc_candidate: str) -> None:
     if not re.fullmatch(r'^[a-f0-9]{32}$', lc_candidate):
         raise ValueError(f"Invalid MD5 checksum: {lc_candidate}")

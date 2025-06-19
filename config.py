@@ -1,4 +1,3 @@
-
 # ==== Standard Libraries ====
 
 from dataclasses import dataclass, fields
@@ -13,7 +12,48 @@ import re
 
 import toml
 
+# ==== Local Modules ====
+
+import utils.general_utils
+# import utils.mf_utils
+
 # ==== Classes ====
+
+@dataclass(frozen=True)
+class Sanity:
+
+    # ==== Flags ====
+
+    strict: bool = False
+
+    # ==== Remote Manifest Location Attributes ====
+
+    expected_remote_lang_dir: str = '/common/destiny_content/sqlite/'
+
+    # ==== Class Methods ====
+
+    @classmethod
+    def from_toml(cls, path: Path):
+        data = toml.load(path)
+        return cls(**data)
+
+    # ==== Methods ====
+
+    def check_remote_mf_dir(
+        self,
+        remote_path: str,
+    ) -> None:
+        if not remote_path.startswith(self.expected_remote_lang_dir):
+            if self.strict:
+                raise ValueError(
+                    f"Invalid remote manifest format: '{remote_path}'. "
+                    f"Bungie may have changed manifest path format."
+                )
+
+            print(f"{remote_path} != {self.expected_remote_lang_dir}")
+
+    def disable_strict(self):
+        object.__setattr__(self, 'strict', False)
 
 @dataclass(frozen=True)
 class Settings:
@@ -57,69 +97,22 @@ class Settings:
     # ==== Class Methods ====
 
     @classmethod
-    def from_toml(cls, filepath):
-        data = toml.load(filepath)
+    def from_toml(cls, path: Path):
+        data = toml.load(path)
         return cls(**data)
 
     # ==== Public Methods ====
 
-    def regenerate_settings(self):
-        with open('settings.toml', 'w') as toml_open:
-            for field in fields(self):
-                name = field.name
-                default = field.default
+settings: Settings = Settings.from_toml(Path('settings.toml'))
+utils.general_utils.regenerate_toml(
+    data_class=settings,
+    path=Path('settings.toml'),
+    exclude_fields=None
+)
 
-                serialised_lines = self._toml_serialise_value(
-                    default
-                ).splitlines()
-
-                toml_open.write(f"# {name} = {serialised_lines[0]}\n")
-                for line in serialised_lines[1:]:
-                    toml_open.write(f"# {line}\n")
-
-    # ==== Private Methods ====
-
-    def _needs_triple_quotes(self, s: str) -> bool:
-        special_chars = ['\n', '\r', '"', "'"]
-
-        return any(c in s for c in special_chars)
-
-    def _is_bare_key(self, s: str) -> bool:
-        return re.fullmatch(r'[A-Za-z0-9_-]+', s) is not None
-
-    def _toml_serialise_value(self, value: Any) -> str:
-        if isinstance(value, str):
-            if self._needs_triple_quotes(value):
-                escaped = value.replace('"""', '\\"""')
-                return '"""\n' + textwrap.indent(escaped, '    ') + '\n"""'
-
-            else:
-                return f'"{value}"'
-
-        elif isinstance(value, bool):
-            return "true" if value else "false"
-        elif isinstance(value, Path):
-            return f'"{value}"'
-        elif isinstance(value, (int, float)):
-            return str(value)
-
-        elif isinstance(value, MappingProxyType):
-            if not value:
-                return "{ }"
-
-            parts = []
-
-            for key, val in value.items():
-                bare_key = key
-                if not self._is_bare_key(key):
-                    bare_key = f'"{key}"'
-
-                parts.append(f'{bare_key} = {self._toml_serialise_value(val)}')
-
-            return "{ " + ", ".join(parts) + " }"
-
-        else:
-            raise TypeError(f"Unsupported TOML type: {type(value)}")
-
-settings: Settings = Settings.from_toml('settings.toml')
-settings.regenerate_settings()
+sanity: Sanity = Sanity.from_toml(Path('sanity.toml'))
+utils.general_utils.regenerate_toml(
+    data_class=sanity,
+    path=Path("sanity.toml"),
+    exclude_fields={'strict'}
+)
