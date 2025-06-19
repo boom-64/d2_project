@@ -251,7 +251,7 @@ class InstalledManifestData:
         if self.path:
             schemas.sanity_checkers.mf_filename(
                 name=self.name,
-                expected_pattern=sanity.expected_mf_name_pattern
+                expected_pattern=config.settings.expected_mf_name_regex
             )
 
             object.__setattr__(self, 'is_pattern_expected', True)
@@ -295,27 +295,45 @@ class InstalledManifestData:
                 checksum_match = True
         object.__setattr__(self, 'checksum_match', checksum_match)
 
-    def update_manifest(self, mf_loc_data: ManifestLocationData) -> None:
-        utils.mf_utils.dl_mf_zip(
-            zip_path=config.settings.zip_path,
-            url=schemas.general_schemas.ParsedURL.from_base_and_path(
-                base_url=config.settings.mf_loc_base_url,
-                path=mf_loc_data.mf_remote_path
-            ).url
-        )
+    # ==== Global Methods ====
 
-        utils.general_utils.rm_sibling_files(files_to_keep={self.path})
+    def update_manifest(
+        self,
+        mf_loc_data: ManifestLocationData,
+        *,
+        force_update: bool = False
+    ) -> InstalledManifestData:
+        bak_path: Path | None = utils.general_utils.append_suffix(
+                path=self.path,
+                suffix=config.settings.mf_bak_ext,
+                overwrite=force_update
+            ) if self.path else None
 
-        new_path = utils.general_utils.append_suffix(
-            path=self.path,
-            suffix=config.settings.mf_bak_ext
-        )
+        try:
+            utils.mf_utils.dl_and_extract_mf_zip(
+                url=schemas.general_schemas.ParsedURL.from_base_and_path(
+                    base_url=config.settings.mf_loc_base_url,
+                    path=mf_loc_data.mf_remote_path
+                ).url,
+                mf_dir_path=config.settings.mf_dir_path,
+                mf_zip_structure=dict(config.settings.mf_zip_structure),
+            )
 
-        object.__setattr__(self, 'path', new_path)
+            files_to_keep: set = {(new_local_manifest := InstalledManifestData()).path}
 
-        utils.general_utils.extract_zip(
-            zip_path=config.settings.zip_path,
-            extract_to=config.settings.mf_dir_path,
-            expected_dir_count=0,
-            expected_file_count=1,
-        )
+            if bak_path is not None:
+                files_to_keep.add(bak_path)
+
+            utils.general_utils.rm_sibling_files(
+                files_to_keep=files_to_keep
+            )
+
+            return new_local_manifest
+
+        finally:
+            if bak_path:
+                utils.general_utils.rm_sibling_files({bak_path})
+
+                utils.general_utils.rm_final_suffix(path=bak_path)
+
+            return self

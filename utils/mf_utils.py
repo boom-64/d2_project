@@ -7,6 +7,7 @@ import shutil
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
+import zipfile
 
 # ==== Non-Standard Libraries ====
 
@@ -115,73 +116,30 @@ def dl_bungie_content(
     except OSError as e:
         raise OSError(f"Error writing file {file.name}: {e}") from e
 
-def dl_mf_zip(
+def dl_and_extract_mf_zip(
     *,
-    zip_path: Path,
-    url: str
+    url: str,
+    mf_dir_path: Path,
+    mf_zip_structure: dict,
+    overwrite: bool = False
 ) -> None:
-    """
-    Function to download manifest zip from Bungie
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp_path = Path(tmp.name)
 
-    This function tries to write content downloaded with _dl_bungie_content
-    to a tempfile.NamedTemporaryFile. A variable write_success is used to
-    distinguish between write errors and future move errors. The function
-    then tries to move the temporary file to the passed path 'zip_path'. If
-    an OSError or shutil.Error occurs and the writing of the file was
-    successful, an OSError is raised giving context of which file was moving
-    where. Finally, any remaining temporary file is removed should it exist,
-    with any errors which might suggest that the file has been cleared up
-    ignored.
-
-    Args:
-        zip_path (str | Path): Path to move zip file to when successfully
-            written (default 'manifest.zip' set in function body).
-        url (str (optional)): The URL to query for the content.
-
-    Returns:
-        None
-
-    Raises:
-        ValueError: If URL passed is invalid.
-        OSError: If an error occurs moving the file, or if an unexpected
-            OSError occurs in temporary file cleanup.
-    """
-    tmp_path: Path | None = None
-    write_success: bool = False # Stores write success of dl_bungie_content()
-
-    try:
-        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-            tmp_path = Path(tmp_file.name)
-
-            # Archive will be big so stream
-            write_success = dl_bungie_content(
-                url=url,
-                file=tmp_file,
-                stream=True
-            )
-
-        # Overwriting existing archives is fine
-        utils.general_utils.mv_item(
-            src=tmp_path,
-            dst=zip_path,
-            overwrite=True
+        dl_bungie_content(
+            url=url,
+            file=tmp,
+            stream=True
         )
 
-    except (OSError, shutil.Error) as e:
-        if not write_success:
-            raise # Re-raise errors from dl_bungie_content()
-        raise OSError(
-            f"Error moving file {tmp_path} to {zip_path}: {e}"
-        ) from e
-
+        tmp.flush()
+    try:
+        utils.general_utils.extract_zip(
+            zip_path=tmp_path,
+            extract_to=mf_dir_path,
+            expected_dir_count=mf_zip_structure['expected_dir_count'],
+            expected_file_count=mf_zip_structure['expected_file_count'],
+            overwrite=overwrite
+        )
     finally:
-        if tmp_path:
-            try:
-                tmp_path.unlink() # 'tmp_path' refers to a NamedTemporaryFile
-
-            except (FileNotFoundError, PermissionError):
-                pass # Ignore cases where file unreachable
-
-            except OSError as e:
-                if e.errno not in (errno.ENOENT, errno.EPERM, errno.EACCES):
-                    raise
+        tmp_path.unlink(missing_ok=True)
