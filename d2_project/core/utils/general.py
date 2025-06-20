@@ -10,7 +10,6 @@ import textwrap
 import zipfile
 from dataclasses import fields
 from pathlib import Path
-from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
@@ -20,7 +19,9 @@ import d2_project.core.validators as d2_project_validators
 # ==== Type Checking ====
 
 if TYPE_CHECKING:
-    from typing import Any, Set
+    from typing import Any, Set, Callable
+    from zipfile import ZipInfo
+    from collections.abc import Mapping
 
 # ==== Logging ====
 
@@ -145,11 +146,14 @@ def extract_zip(
                 # Assign 'zip_contents' for re-use
                 zip_contents = zip_ref.infolist()
 
-                # Validate expected counts of files and/or dirs
-                for entry_type, expected, predicate in [
+                # Validate expected counts of files and/or dirs\
+                expected_counts: list[
+                    tuple[str, int | None, Callable[[ZipInfo], bool]]
+                    ] = [
                     ('file', expected_file_count, lambda e: not e.is_dir()),
                     ('dir', expected_dir_count, lambda e: e.is_dir())
-                ]:
+                ]
+                for entry_type, expected, predicate in expected_counts:
                     # Execute only if expected_*_count passed
                     if expected is not None:
                         d2_project_validators.expected_entry_count(
@@ -322,6 +326,7 @@ def regenerate_toml(
     path: Path,
     exclude_fields: Set[str] | None = None
 ) -> None:
+
     with open(path, 'w') as toml_open:
         for field in fields(data_class):
             name = field.name
@@ -346,7 +351,16 @@ def _needs_triple_quotes(s: str) -> bool:
 def _is_bare_key(s: str) -> bool:
     return re.fullmatch(r'[A-Za-z0-9_-]+', s) is not None
 
-def _toml_serialise_value(data_class: Any, value: Any) -> str:
+TomlValue = (
+    str
+    | bool
+    | int
+    | float
+    | Path
+    | Mapping[str, 'TomlValue']
+)
+
+def _toml_serialise_value(data_class: Any, value: TomlValue) -> str:
     if isinstance(value, str):
         if _needs_triple_quotes(value):
             escaped = value.replace('"""', '\\"""')
@@ -362,21 +376,16 @@ def _toml_serialise_value(data_class: Any, value: Any) -> str:
     elif isinstance(value, (int, float)):
         return str(value)
 
-    elif isinstance(value, MappingProxyType):
+    else:
         if not value:
             return "{ }"
 
-        parts = []
-
+        parts: list[str] = []
         for key, val in value.items():
-            bare_key = key
-            if not _is_bare_key(key):
-                bare_key = f'"{key}"'
+                bare_key: str = key
+                if not _is_bare_key(key):
+                    bare_key = f'"{key}"'
 
-            parts.append(f'{bare_key} = {_toml_serialise_value(data_class=data_class, value=val)}')
+                parts.append(f'{bare_key} = {_toml_serialise_value(data_class=data_class, value=val)}')
 
         return "{ " + ", ".join(parts) + " }"
-
-    else:
-        raise TypeError(f"Unsupported TOML type: {type(value)}")
-
