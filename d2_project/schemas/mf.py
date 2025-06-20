@@ -10,12 +10,11 @@ from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
 
-# import core.errors
-import core.validators
-import core.utils.general
-import core.utils.mf
-import config
-import schemas.general
+import d2_project.config.config as d2_project_config
+import d2_project.core.utils.general as general_utils
+import d2_project.core.utils.mf as mf_utils
+import d2_project.core.validators as d2_project_validators
+import d2_project.schemas.general as general_schemas
 
 # ==== Type Checking ====
 
@@ -151,14 +150,14 @@ class ManifestLocationData(BungieResponseData):
         self._validate_response_structure()
         self._set_lang()
         self._extract_mf_path()
-        config.sanity.check_remote_mf_dir(
+        d2_project_config.sanity.check_remote_mf_dir(
             remote_path=self.mf_remote_path
         )
         self._extract_mf_name()
         self._construct_mf_url()
 
     def _set_lang(self):
-        object.__setattr__(self, 'lang', config.settings.mf_lang)
+        object.__setattr__(self, 'lang', d2_project_config.settings.mf_lang)
 
     def _validate_response_structure(self):
         pass
@@ -181,8 +180,8 @@ class ManifestLocationData(BungieResponseData):
         object.__setattr__(
             self,
             'mf_url',
-            schemas.general.ParsedURL.from_base_and_path(
-                base_url=config.settings.mf_loc_base_url,
+            general_schemas.ParsedURL.from_base_and_path(
+                base_url=d2_project_config.settings.mf_loc_base_url,
                 path=self.mf_remote_path
             )
         )
@@ -193,8 +192,8 @@ class InstalledManifestData:
     path: Path = field(init=False)
     is_pattern_expected: bool = False
     extension: str = field(init=False)
-    computed_checksum: schemas.general.MD5Checksum = field(init=False)
-    expected_checksum: schemas.general.MD5Checksum = field(init=False)
+    computed_checksum: general_schemas.MD5Checksum = field(init=False)
+    expected_checksum: general_schemas.MD5Checksum = field(init=False)
     checksum_match: bool = field(init=False)
 
     # ==== Initialisation ====
@@ -209,16 +208,18 @@ class InstalledManifestData:
         self._compute_and_set_checksum_match()
 
     def _find_and_set_path(self) -> None:
-        if not (mf_dir_path := config.settings.mf_dir_path).is_dir():
+        if not (
+            mf_dir_path := d2_project_config.settings.mf_dir_path
+        ).is_dir():
             raise NotADirectoryError(
                 f"{mf_dir_path} is not a directory"
             )
 
         mf_candidates = []
-        for entry in config.settings.mf_dir_path.iterdir():
+        for entry in d2_project_config.settings.mf_dir_path.iterdir():
             if (
                 entry.suffix == (
-                    config.settings.extension
+                    d2_project_config.settings.extension
                 )
                 and entry.is_file()
             ):
@@ -227,7 +228,7 @@ class InstalledManifestData:
                 # Raise early once more than one candidate found
                 if len(mf_candidates) > 1:
                     raise FileExistsError(
-                        f"Directory {config.settings.mf_dir_path} "
+                        f"Directory {d2_project_config.settings.mf_dir_path} "
                         f"contains too many compatible manifest files, "
                         f"including both {mf_candidates[0]} and "
                         f"{mf_candidates[1]}."
@@ -251,10 +252,10 @@ class InstalledManifestData:
 
     def _determine_pattern_expected(self) -> None:
         if self.path:
-            core.validators.str_matches_pattern(
+            d2_project_validators.str_matches_pattern(
                 value=self.name,
-                stringpattern=core.validators.FileNameStringPattern(
-                    pattern=config.settings.expected_mf_name_regex
+                stringpattern=d2_project_validators.FileNameStringPattern(
+                    pattern=d2_project_config.settings.expected_mf_name_regex
                 )
             )
 
@@ -267,33 +268,33 @@ class InstalledManifestData:
         object.__setattr__(self, 'extension', extension)
 
     def _extract_and_set_expected_checksum(self):
-        expected_checksum: schemas.general.MD5Checksum | None = None
+        expected_checksum: general_schemas.MD5Checksum | None = None
         expected_checksum_str: str
 
         if self.is_pattern_expected:
             expected_checksum_str = self.path.stem.split('_')[-1]
-            expected_checksum = schemas.general.MD5Checksum(
+            expected_checksum = general_schemas.MD5Checksum(
                 expected_checksum_str
             )
         elif self.path:
             expected_checksum_str = self.path.stem[-32:]
 
-            core.validators.str_matches_pattern(
+            d2_project_validators.str_matches_pattern(
                 value=expected_checksum_str,
-                stringpattern=core.validators.lc_checksum_stringpattern
+                stringpattern=d2_project_validators.lc_checksum_stringpattern
             )
 
-            expected_checksum = schemas.general.MD5Checksum(
+            expected_checksum = general_schemas.MD5Checksum(
                 expected_checksum_str
             )
 
         object.__setattr__(self, 'expected_checksum', expected_checksum)
 
     def _compute_and_set_computed_checksum(self):
-        computed_checksum: schemas.general.MD5Checksum | None = None
+        computed_checksum: general_schemas.MD5Checksum | None = None
         if self.path:
             computed_checksum = (
-                schemas.general.MD5Checksum.calc(self.path)
+                general_schemas.MD5Checksum.calc(self.path)
             )
         object.__setattr__(self, 'computed_checksum', computed_checksum)
 
@@ -312,20 +313,22 @@ class InstalledManifestData:
         *,
         force_update: bool = False
     ) -> InstalledManifestData:
-        bak_path: Path | None = core.utils.general.append_suffix(
+        bak_path: Path | None = general_utils.append_suffix(
                 path=self.path,
-                suffix=config.settings.mf_bak_ext,
+                suffix=d2_project_config.settings.mf_bak_ext,
                 overwrite=force_update
             ) if self.path else None
 
         try:
-            core.utils.mf.dl_and_extract_mf_zip(
-                url=schemas.general.ParsedURL.from_base_and_path(
-                    base_url=config.settings.mf_loc_base_url,
+            mf_utils.dl_and_extract_mf_zip(
+                url=general_schemas.ParsedURL.from_base_and_path(
+                    base_url=d2_project_config.settings.mf_loc_base_url,
                     path=mf_loc_data.mf_remote_path
                 ).url,
-                mf_dir_path=config.settings.mf_dir_path,
-                mf_zip_structure=dict(config.settings.mf_zip_structure),
+                mf_dir_path=d2_project_config.settings.mf_dir_path,
+                mf_zip_structure=dict(
+                    d2_project_config.settings.mf_zip_structure
+                ),
             )
 
             files_to_keep: set = {(new_local_manifest := InstalledManifestData()).path}
@@ -333,16 +336,16 @@ class InstalledManifestData:
             if bak_path is not None:
                 files_to_keep.add(bak_path)
 
-            core.utils.general.rm_sibling_files(
+            general_utils.rm_sibling_files(
                 files_to_keep=files_to_keep
             )
 
             return new_local_manifest
 
-        finally:
+        except:
             if bak_path:
-                core.utils.general.rm_sibling_files({bak_path})
+                general_utils.rm_sibling_files({bak_path})
 
-                core.utils.general.rm_final_suffix(path=bak_path)
+                general_utils.rm_final_suffix(path=bak_path)
 
             return self

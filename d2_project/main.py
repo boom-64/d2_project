@@ -1,33 +1,26 @@
 # ==== Local Modules ====
 
-# import core.errors
-# import core.validators
-# import core.utils.general
-from d2_project import core.utils.mf
-
-import config
-
-# import schemas.general_schemas
-import schemas.mf
-# import schemas.sanity_checkers
+import d2_project.config.config as d2_project_config
+import d2_project.core.utils.mf as mf_utils
+import d2_project.schemas.mf as mf_schemas
 
 # ==== Execution ====
 
-mf_loc_data: schemas.mf.ManifestLocationData = (
-    schemas.mf.ManifestLocationData(
-        core.utils.mf.request_bungie(
-            url=config.settings.mf_finder_url,
-            key=config.settings.api_key
+mf_loc_data: mf_schemas.ManifestLocationData = (
+    mf_schemas.ManifestLocationData(
+        mf_utils.request_bungie(
+            url=d2_project_config.settings.mf_finder_url,
+            key=d2_project_config.settings.api_key
         )
     )
 )
 
-installed_mf_data: schemas.mf.InstalledManifestData = (
-    schemas.mf.InstalledManifestData()
+installed_mf_data: mf_schemas.InstalledManifestData = (
+    mf_schemas.InstalledManifestData()
 )
 
 if mf_loc_data.mf_name != installed_mf_data.name:
     installed_mf_data.update_manifest(mf_loc_data)
 
-if config.config.settings.force_update:
+if d2_project_config.settings.force_update:
     installed_mf_data.update_manifest(mf_loc_data, force_update=True)

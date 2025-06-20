@@ -11,10 +11,7 @@ import toml
 
 # ==== Local Modules ====
 
-# import core.errors
-# import core.manifest
-import core.utils.general
-#import core.utils.mf
+from d2_project.core.utils import general as general_utils
 
 # ==== Classes ====
 
@@ -77,7 +74,7 @@ class Settings:
 
     # ==== Local Filesystem Attributes ====
 
-    mf_dir_path: Path = Path('manifest').resolve()
+    mf_dir_path: Path = Path(__file__).resolve().parents[1] / 'manifest'
     mf_bak_ext: str = '.bak'
 
     # ==== Properties ====
@@ -102,16 +99,16 @@ class Settings:
 
     # ==== Public Methods ====
 
-settings: Settings = Settings.from_toml(Path('config/settings.toml'))
-core.utils.general.regenerate_toml(
+settings: Settings = Settings.from_toml(Path(__file__).resolve().parent / "settings.toml")
+general_utils.regenerate_toml(
     data_class=settings,
-    path=Path('config/settings.toml'),
+    path=Path(__file__).resolve().parent / "settings.toml",
     exclude_fields=None
 )
 
-sanity: Sanity = Sanity.from_toml(Path('config/sanity.toml'))
-core.utils.general.regenerate_toml(
+sanity: Sanity = Sanity.from_toml(Path(__file__).resolve().parent / "sanity.toml")
+general_utils.regenerate_toml(
     data_class=sanity,
-    path=Path("config/sanity.toml"),
+    path=Path(__file__).resolve().parent / "settings.toml",
     exclude_fields={'strict'}
 )

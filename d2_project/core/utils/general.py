@@ -15,8 +15,7 @@ from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
 
-# import core.errors
-import core.validators
+import d2_project.core.validators as d2_project_validators
 
 # ==== Type Checking ====
 
@@ -125,7 +124,7 @@ def extract_zip(
         expected_file_count is not None or expected_dir_count is not None
     )
 
-    core.validators.entry_is_file(zip_path)
+    d2_project_validators.entry_is_file(zip_path)
 
     # Raise if 'extract_to' exists AND isn't a directory
     if extract_to.exists() and not extract_to.is_dir():
@@ -153,7 +152,7 @@ def extract_zip(
                 ]:
                     # Execute only if expected_*_count passed
                     if expected is not None:
-                        core.validators.expected_entry_count(
+                        d2_project_validators.expected_entry_count(
                             entry_type=entry_type,
                             expected=expected,
                             actual=sum(
@@ -207,7 +206,7 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
 
     # Validate 'files_to_keep'
     for f in keep:
-        core.validators.entry_is_file(f)
+        d2_project_validators.entry_is_file(f)
         if f.parent != directory:
             raise ValueError(
                 f"Passed file-to-keep '{f}' not in same directory as other "
@@ -227,7 +226,7 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
                 ) from e
 
 def rm_file(file: Path) -> None:
-    core.validators.entry_is_file(file)
+    d2_project_validators.entry_is_file(file)
 
     file.unlink()
 
@@ -247,10 +246,10 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
     Returns:
         Path: The new Path object with the appended suffix.
     """
-    core.validators.entry_is_file(path)
-    core.validators.str_matches_pattern(
+    d2_project_validators.entry_is_file(path)
+    d2_project_validators.str_matches_pattern(
         value=suffix,
-        stringpattern=core.validators.file_suffix_stringpattern
+        stringpattern=d2_project_validators.file_suffix_stringpattern
     )
 
     new_path: Path = path.with_name(path.name + suffix)
@@ -278,7 +277,7 @@ def rm_final_suffix(*, path: Path, overwrite: bool = False) -> Path:
     Raises:
         ValueError: If the given (validated) file has no suffix.
     """
-    core.validators.entry_is_file(path)
+    d2_project_validators.entry_is_file(path)
 
     if not path.suffix:
         raise ValueError(f"File '{path}' has no suffix to be removed.")

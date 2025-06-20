@@ -13,10 +13,8 @@ from requests.models import Response
 
 # ==== Local Modules ====
 
-import core.errors
-# import core.validators
-
-import core.utils.general
+import d2_project.core.errors as d2_project_errors
+import d2_project.core.utils.general as general_utils
 
 # ==== Type Checking ====
 
@@ -104,7 +102,7 @@ def dl_bungie_content(
         return True
 
     except requests.RequestException as e:
-        raise core.errors.DownloadError(
+        raise d2_project_errors.DownloadError(
             url=url,
             stream=stream,
             original_exception=e
@@ -131,7 +129,7 @@ def dl_and_extract_mf_zip(
 
         tmp.flush()
     try:
-        core.utils.general.extract_zip(
+        general_utils.extract_zip(
             zip_path=tmp_path,
             extract_to=mf_dir_path,
             expected_dir_count=mf_zip_structure['expected_dir_count'],

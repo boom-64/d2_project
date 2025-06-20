@@ -14,10 +14,7 @@ import validators
 
 # ==== Local Libraries ====
 
-# import core.errors
-import core.validators
-# import utils.general_utils
-# import utils.mf_utils
+import d2_project.core.validators as d2_project_validators
 
 # ==== Type Checking ====
 
@@ -38,9 +35,9 @@ class MD5Checksum:
         lc_val = self.val.lower()
 
         if not self.from_calc:
-            core.validators.str_matches_pattern(
+            d2_project_validators.str_matches_pattern(
                 value=lc_val,
-                stringpattern=core.validators.lc_checksum_stringpattern
+                stringpattern=d2_project_validators.lc_checksum_stringpattern
             )
 
         object.__setattr__(self, 'val', lc_val)
@@ -67,7 +64,7 @@ class MD5Checksum:
             TypeError: If 'path' type is not Path.
             ValueError: If 'path' does not refer to a file.
         """
-        core.validators.entry_is_file(path)
+        d2_project_validators.entry_is_file(path)
         # Assign 'hasher' - an MD5 hash object.
         hasher = hashlib.md5()
 
