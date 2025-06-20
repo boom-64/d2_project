@@ -5,8 +5,7 @@
 # import core.utils.general
 import core.utils.mf
 
-import config.config
-# import sanity
+import config
 
 # import schemas.general_schemas
 import schemas.mf
@@ -17,8 +16,8 @@ import schemas.mf
 mf_loc_data: schemas.mf.ManifestLocationData = (
     schemas.mf.ManifestLocationData(
         core.utils.mf.request_bungie(
-            url=config.config.settings.mf_finder_url,
-            key=config.config.settings.api_key
+            url=config.settings.mf_finder_url,
+            key=config.settings.api_key
         )
     )
 )

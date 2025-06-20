@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import core.validators
 import core.utils.general
 import core.utils.mf
-import config.config
+import config
 import schemas.general
 
 # ==== Type Checking ====
@@ -151,14 +151,14 @@ class ManifestLocationData(BungieResponseData):
         self._validate_response_structure()
         self._set_lang()
         self._extract_mf_path()
-        config.config.sanity.check_remote_mf_dir(
+        config.sanity.check_remote_mf_dir(
             remote_path=self.mf_remote_path
         )
         self._extract_mf_name()
         self._construct_mf_url()
 
     def _set_lang(self):
-        object.__setattr__(self, 'lang', config.config.settings.mf_lang)
+        object.__setattr__(self, 'lang', config.settings.mf_lang)
 
     def _validate_response_structure(self):
         pass
@@ -182,7 +182,7 @@ class ManifestLocationData(BungieResponseData):
             self,
             'mf_url',
             schemas.general.ParsedURL.from_base_and_path(
-                base_url=config.config.settings.mf_loc_base_url,
+                base_url=config.settings.mf_loc_base_url,
                 path=self.mf_remote_path
             )
         )
@@ -209,16 +209,16 @@ class InstalledManifestData:
         self._compute_and_set_checksum_match()
 
     def _find_and_set_path(self) -> None:
-        if not (mf_dir_path := config.config.settings.mf_dir_path).is_dir():
+        if not (mf_dir_path := config.settings.mf_dir_path).is_dir():
             raise NotADirectoryError(
                 f"{mf_dir_path} is not a directory"
             )
 
         mf_candidates = []
-        for entry in config.config.settings.mf_dir_path.iterdir():
+        for entry in config.settings.mf_dir_path.iterdir():
             if (
                 entry.suffix == (
-                    config.config.settings.extension
+                    config.settings.extension
                 )
                 and entry.is_file()
             ):
@@ -227,7 +227,7 @@ class InstalledManifestData:
                 # Raise early once more than one candidate found
                 if len(mf_candidates) > 1:
                     raise FileExistsError(
-                        f"Directory {config.config.settings.mf_dir_path} "
+                        f"Directory {config.settings.mf_dir_path} "
                         f"contains too many compatible manifest files, "
                         f"including both {mf_candidates[0]} and "
                         f"{mf_candidates[1]}."
@@ -254,7 +254,7 @@ class InstalledManifestData:
             core.validators.str_matches_pattern(
                 value=self.name,
                 stringpattern=core.validators.FileNameStringPattern(
-                    pattern=config.config.settings.expected_mf_name_regex
+                    pattern=config.settings.expected_mf_name_regex
                 )
             )
 
@@ -314,18 +314,18 @@ class InstalledManifestData:
     ) -> InstalledManifestData:
         bak_path: Path | None = core.utils.general.append_suffix(
                 path=self.path,
-                suffix=config.config.settings.mf_bak_ext,
+                suffix=config.settings.mf_bak_ext,
                 overwrite=force_update
             ) if self.path else None
 
         try:
             core.utils.mf.dl_and_extract_mf_zip(
                 url=schemas.general.ParsedURL.from_base_and_path(
-                    base_url=config.config.settings.mf_loc_base_url,
+                    base_url=config.settings.mf_loc_base_url,
                     path=mf_loc_data.mf_remote_path
                 ).url,
-                mf_dir_path=config.config.settings.mf_dir_path,
-                mf_zip_structure=dict(config.config.settings.mf_zip_structure),
+                mf_dir_path=config.settings.mf_dir_path,
+                mf_zip_structure=dict(config.settings.mf_zip_structure),
             )
 
             files_to_keep: set = {(new_local_manifest := InstalledManifestData()).path}
