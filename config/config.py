@@ -1,12 +1,9 @@
 # ==== Standard Libraries ====
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from string import Template
 from pathlib import Path
-import textwrap
 from types import MappingProxyType
-from typing import Any
-import re
 
 # ==== Non-Standard Libraries ====
 
@@ -14,8 +11,10 @@ import toml
 
 # ==== Local Modules ====
 
-import utils.general_utils
-# import utils.mf_utils
+# import core.errors
+# import core.manifest
+import core.utils.general
+#import core.utils.mf
 
 # ==== Classes ====
 
@@ -103,15 +102,15 @@ class Settings:
 
     # ==== Public Methods ====
 
-settings: Settings = Settings.from_toml(Path('settings.toml'))
-utils.general_utils.regenerate_toml(
+settings: Settings = Settings.from_toml(Path('config/settings.toml'))
+core.utils.general.regenerate_toml(
     data_class=settings,
     path=Path('settings.toml'),
     exclude_fields=None
 )
 
-sanity: Sanity = Sanity.from_toml(Path('sanity.toml'))
-utils.general_utils.regenerate_toml(
+sanity: Sanity = Sanity.from_toml(Path('config/sanity.toml'))
+core.utils.general.regenerate_toml(
     data_class=sanity,
     path=Path("sanity.toml"),
     exclude_fields={'strict'}

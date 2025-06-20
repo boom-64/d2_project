@@ -2,12 +2,9 @@ from __future__ import annotations
 
 # ==== Standard Libraries ====
 
-import errno
-import shutil
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
-import zipfile
 
 # ==== Non-Standard Libraries ====
 
@@ -19,7 +16,7 @@ from requests.models import Response
 import core.errors
 # import core.validators
 
-import utils.general_utils
+import core.utils.general
 
 # ==== Type Checking ====
 
@@ -134,7 +131,7 @@ def dl_and_extract_mf_zip(
 
         tmp.flush()
     try:
-        utils.general_utils.extract_zip(
+        core.utils.general.extract_zip(
             zip_path=tmp_path,
             extract_to=mf_dir_path,
             expected_dir_count=mf_zip_structure['expected_dir_count'],

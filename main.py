@@ -2,34 +2,33 @@
 
 # import core.errors
 # import core.validators
+# import core.utils.general
+import core.utils.mf
 
-# import utils.general_utils
-import utils.mf_utils
-
-import config
+import config.config
 # import sanity
 
 # import schemas.general_schemas
-import schemas.mf_schemas
+import schemas.mf
 # import schemas.sanity_checkers
 
 # ==== Execution ====
 
-mf_loc_data: schemas.mf_schemas.ManifestLocationData = (
-    schemas.mf_schemas.ManifestLocationData(
-        utils.mf_utils.request_bungie(
-            url=config.settings.mf_finder_url,
-            key=config.settings.api_key
+mf_loc_data: schemas.mf.ManifestLocationData = (
+    schemas.mf.ManifestLocationData(
+        core.utils.mf.request_bungie(
+            url=config.config.settings.mf_finder_url,
+            key=config.config.settings.api_key
         )
     )
 )
 
-installed_mf_data: schemas.mf_schemas.InstalledManifestData = (
-    schemas.mf_schemas.InstalledManifestData()
+installed_mf_data: schemas.mf.InstalledManifestData = (
+    schemas.mf.InstalledManifestData()
 )
 
 if mf_loc_data.mf_name != installed_mf_data.name:
     installed_mf_data.update_manifest(mf_loc_data)
 
-if config.settings.force_update:
+if config.config.settings.force_update:
     installed_mf_data.update_manifest(mf_loc_data, force_update=True)
