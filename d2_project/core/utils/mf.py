@@ -115,7 +115,7 @@ def dl_and_extract_mf_zip(
     *,
     url: str,
     mf_dir_path: Path,
-    mf_zip_structure: dict,
+    mf_zip_structure: dict[str, int],
     overwrite: bool = False
 ) -> None:
     with tempfile.NamedTemporaryFile(delete=False) as tmp:

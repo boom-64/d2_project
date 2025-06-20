@@ -215,11 +215,11 @@ class InstalledManifestData:
                 f"{mf_dir_path} is not a directory"
             )
 
-        mf_candidates = []
+        mf_candidates: list[Path] = []
         for entry in d2_project_config.settings.mf_dir_path.iterdir():
             if (
                 entry.suffix == (
-                    d2_project_config.settings.extension
+                    d2_project_config.settings.mf_extension
                 )
                 and entry.is_file()
             ):
@@ -331,7 +331,7 @@ class InstalledManifestData:
                 ),
             )
 
-            files_to_keep: set = {(new_local_manifest := InstalledManifestData()).path}
+            files_to_keep: set[Path] = {(new_local_manifest := InstalledManifestData()).path}
 
             if bak_path is not None:
                 files_to_keep.add(bak_path)
