@@ -38,7 +38,10 @@ class MD5Checksum:
         lc_val = self.val.lower()
 
         if not self.from_calc:
-            core.validators.lc_checksum(lc_val)
+            core.validators.str_matches_pattern(
+                value=lc_val,
+                stringpattern=core.validators.lc_checksum_stringpattern
+            )
 
         object.__setattr__(self, 'val', lc_val)
 

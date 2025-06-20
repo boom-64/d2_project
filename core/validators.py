@@ -3,6 +3,8 @@ from __future__ import annotations
 # ==== Standard Libraries ====
 
 import re
+from dataclasses import dataclass
+from string import Template
 from typing import TYPE_CHECKING
 
 # ==== Type Checking ====
@@ -10,19 +12,53 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
+# ==== String Patterns ====
+
+@dataclass
+class StringPattern:
+    pattern: str
+    errormsg: Template | None = None
+
+lc_checksum_stringpattern = StringPattern(
+    pattern=r'^[a-f0-9]{32}$',
+    errormsg=Template("Value '$value not a valid checksum.")
+)
+
+file_suffix_stringpattern: StringPattern = StringPattern(
+    pattern = r'\.[A-Za-z0-9._-]+',
+    errormsg=Template("New suffix '$value' not a compatible suffix.")
+)
+
+class FileNameStringPattern(StringPattern):
+    errormsg = Template(
+        "File '$value' does not match expected file name pattern: '$pattern$."
+    )
+
 # ==== Functions ====
 
 def str_starts_with(value: str, starts_with: str, *, strict: bool) -> None:
+    """
+    Checks whether or not a string starts with a certain string.
+
+    This function checks whether a string starts with a certain string,
+    raising a ValueError if 'strict=True' passed. Otherwise, the failure is
+    logged.
+
+    Args:
+        value (str): The string to check.
+        starts_with (str): The string to look for at the start of 'value'.
+        strict (bool): Determines result of failure.
+
+    Raises:
+        ValueError: If 'strict==True' and the check fails.
+    """
     if not value.startswith(starts_with):
         if strict:
             raise ValueError(
-                f"String {value} does not begin with {starts_with} as expected."
+                f"String {value} does not begin with {starts_with} as "
+                f"expected."
             )
         # Log
-
-def lc_checksum(lc_candidate: str) -> None:
-    if not re.fullmatch(r'^[a-f0-9]{32}$', lc_candidate):
-        raise ValueError(f"Invalid MD5 checksum: {lc_candidate}")
 
 def expected_entry_count(
     *,
@@ -46,7 +82,7 @@ def expected_entry_count(
         expected (int, optional): The expected number of entries. If 'None',
             no validation is performed (default is None).
         actual (int): The actual number of entries found.
-        source_path (Path): Path to the source (e.g., directory or archive)
+        entry_source (Path): Path to the source (e.g., directory or archive)
             where entries were counted. Used for error messages.
 
     Raises:
@@ -66,11 +102,15 @@ def expected_entry_count(
             f"expected {expected}, found {actual}."
         )
 
-def file_name(*, name: str, pattern: str) -> None:
-    if not re.fullmatch(pattern, name):
+def str_matches_pattern(*, value: str, stringpattern: StringPattern) -> None:
+    if not re.fullmatch(stringpattern.pattern, value):
         raise ValueError(
-            f"File name '{name}' does not match expected file name format: "
-            f"{pattern}."
+            stringpattern.errormsg or Template(
+                "Value '$value' does not match expected pattern: '$pattern'."
+            ).safe_substitute(
+                value=value,
+                pattern=stringpattern.pattern
+            )
         )
 
 def entry_is_file(path: Path) -> None:
@@ -85,20 +125,3 @@ def entry_is_file(path: Path) -> None:
     """
     if not path.is_file():
         raise ValueError(f"Passed 'path={path}' must refer to file.")
-
-def file_suffix(suffix: str) -> None:
-    """
-    Validate the suffix string.
-
-    Ensures the suffix is a string, starts with a '.', and matches allowed
-    characters.
-
-    Args:
-        suffix (str): The suffix string to validate.
-
-    Raises:
-        ValueError: If the suffix is not a string or does not match the
-            allowed pattern.
-    """
-    if not re.fullmatch(r'\.[A-Za-z0-9._-]+', suffix):
-        raise ValueError(f"New suffix '{suffix}' not a compatible suffix.")

@@ -248,7 +248,10 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
         Path: The new Path object with the appended suffix.
     """
     core.validators.entry_is_file(path)
-    core.validators.file_suffix(suffix)
+    core.validators.str_matches_pattern(
+        value=suffix,
+        stringpattern=core.validators.file_suffix_stringpattern
+    )
 
     new_path: Path = path.with_name(path.name + suffix)
 

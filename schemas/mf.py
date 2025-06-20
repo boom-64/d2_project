@@ -251,9 +251,11 @@ class InstalledManifestData:
 
     def _determine_pattern_expected(self) -> None:
         if self.path:
-            core.validators.file_name(
-                name=self.name,
-                pattern=config.config.settings.expected_mf_name_regex
+            core.validators.str_matches_pattern(
+                value=self.name,
+                stringpattern=core.validators.FileNameStringPattern(
+                    pattern=config.config.settings.expected_mf_name_regex
+                )
             )
 
             object.__setattr__(self, 'is_pattern_expected', True)
@@ -275,7 +277,12 @@ class InstalledManifestData:
             )
         elif self.path:
             expected_checksum_str = self.path.stem[-32:]
-            core.validators.lc_checksum(expected_checksum_str)
+
+            core.validators.str_matches_pattern(
+                value=expected_checksum_str,
+                stringpattern=core.validators.lc_checksum_stringpattern
+            )
+
             expected_checksum = schemas.general.MD5Checksum(
                 expected_checksum_str
             )
