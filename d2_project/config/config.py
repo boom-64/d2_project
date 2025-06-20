@@ -105,13 +105,13 @@ class Settings:
 settings: Settings = Settings.from_toml(Path('config/settings.toml'))
 core.utils.general.regenerate_toml(
     data_class=settings,
-    path=Path('settings.toml'),
+    path=Path('config/settings.toml'),
     exclude_fields=None
 )
 
 sanity: Sanity = Sanity.from_toml(Path('config/sanity.toml'))
 core.utils.general.regenerate_toml(
     data_class=sanity,
-    path=Path("sanity.toml"),
+    path=Path("config/sanity.toml"),
     exclude_fields={'strict'}
 )

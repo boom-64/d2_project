@@ -3,7 +3,7 @@
 # import core.errors
 # import core.validators
 # import core.utils.general
-import core.utils.mf
+from d2_project import core.utils.mf
 
 import config
 
