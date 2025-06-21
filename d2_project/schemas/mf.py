@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
-
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 from json import JSONDecodeError
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
-
 import d2_project.config.config as d2_project_config
 import d2_project.core.utils.general as general_utils
 import d2_project.core.utils.mf as mf_utils
@@ -19,21 +16,22 @@ import d2_project.schemas.general as general_schemas
 # ==== Type Checking ====
 
 if TYPE_CHECKING:
-    from typing import Any
-    from requests.models import Response
     from pathlib import Path
+    from typing import Any
+
+    from requests.models import Response
 
 # ==== Classes ====
 
 @dataclass(frozen=True, init=False)
 class BungieResponseData:
     _attrs_conversion = MappingProxyType({
-        'error_code': 'ErrorCode',
-        'throttle_seconds': 'ThrottleSeconds',
-        'error_status': 'ErrorStatus',
-        'message': 'Message',
-        'message_data': 'MessageData',
-        'response': 'Response'
+        "error_code": "ErrorCode",
+        "throttle_seconds": "ThrottleSeconds",
+        "error_status": "ErrorStatus",
+        "message": "Message",
+        "message_data": "MessageData",
+        "response": "Response",
     })
 
     error_code: int = field(init=False)
@@ -46,9 +44,7 @@ class BungieResponseData:
     # ==== Initialisation ====
 
     def __init__(self, raw_data: Response) -> None:
-        """
-        Initializes BungieResponseData by parsing and validating a
-        requests.Response object.
+        """Initialize BungieResponseData by parsing and validating response.
 
         Args:
             raw_data (Response): The raw response object returned by
@@ -59,6 +55,7 @@ class BungieResponseData:
                 missing, or unexpected fields are present in the response.
             KeyError:
             ValueError:
+
         """
         try:
             json_data = raw_data.json()
@@ -69,17 +66,17 @@ class BungieResponseData:
             if (diff := set(json_data) - set(self._attrs_conversion.values())):
                 raise ValueError(
                     "Unexpected components in response: " +
-                    ", ".join(f"{k}={json_data[k]!r}" for k in diff)
+                    ", ".join(f"{k}={json_data[k]!r}" for k in diff),
                 )
 
         except JSONDecodeError as e:
             raise ValueError(
-                f"Failed to parse json response: {e}"
+                f"Failed to parse json response: {e}",
             ) from e
 
         except KeyError as e:
             raise ValueError(
-                f"Missing required field in response: {e}."
+                f"Missing required field in response: {e}.",
             ) from e
 
         for key, val in attrs.items():
@@ -90,46 +87,47 @@ class BungieResponseData:
     # ==== Error Handling ====
 
     def _handle_error_code(self) -> None:
-        """
-        Validates the error_code to determine if the response indicates success.
+        """Validate the error_code to determine if the response indicates success.
 
         Raises:
             PermissionError: If the error code indicates an API key issue.
             self.APIError: For other unexpected Bungie API errors.
+
         """
         if self.error_code != 1:
             if self.error_code in (2101, 2102):
                 raise PermissionError(
                     f"Issue with the API key. Error code: {self.error_code}, "
-                    f"error message: '{self.message}'.")
+                    f"error message: '{self.message}'."
+                )
             raise self.APIError(
                 msg="Unexpected Bungie API error.",
-                response_data=self
+                response_data=self,
             )
 
     # ==== Custom Exceptions ====
 
     class APIError(Exception):
-        """
-        Exception raised for errors returned by the Bungie API.
+        """Exception raised for errors returned by the Bungie API.
 
         This exception is intended to represent non-permission-related
         errors in Bungie's API response.
         """
+
         def __init__(
             self,
             *,
             msg: str,
-            response_data: 'BungieResponseData | None' = None
+            response_data: BungieResponseData | None = None,
         ) -> None:
-            """
-            Initializes the APIError exception.
+            """Initializes the APIError exception.
 
             Args:
                 msg (str): Description of the error.
                 response_data (core.schemas.BungieResponseData | None,
                 optional): The BungieResponseData instance related to this
                     error.
+
             """
             if response_data:
                 msg = f"{msg.rstrip()} Response data: '{response_data}'."
@@ -151,13 +149,13 @@ class ManifestLocationData(BungieResponseData):
         self._set_lang()
         self._extract_mf_path()
         d2_project_config.sanity.check_remote_mf_dir(
-            remote_path=self.mf_remote_path
+            remote_path=self.mf_remote_path,
         )
         self._extract_mf_name()
         self._construct_mf_url()
 
     def _set_lang(self):
-        object.__setattr__(self, 'lang', d2_project_config.settings.mf_lang)
+        object.__setattr__(self, "lang", d2_project_config.settings.mf_lang)
 
     def _validate_response_structure(self):
         pass
@@ -165,25 +163,25 @@ class ManifestLocationData(BungieResponseData):
     def _extract_mf_path(self):
         object.__setattr__(
             self,
-            'mf_remote_path',
-            self.response['mobileWorldContentPaths'][self.lang]
+            "mf_remote_path",
+            self.response["mobileWorldContentPaths"][self.lang],
         )
 
     def _extract_mf_name(self):
         object.__setattr__(
             self,
-            'mf_name',
-            self.mf_remote_path.split('/')[-1]
+            "mf_name",
+            self.mf_remote_path.split("/")[-1],
         )
 
     def _construct_mf_url(self):
         object.__setattr__(
             self,
-            'mf_url',
+            "mf_url",
             general_schemas.ParsedURL.from_base_and_path(
                 base_url=d2_project_config.settings.mf_loc_base_url,
-                path=self.mf_remote_path
-            )
+                path=self.mf_remote_path,
+            ),
         )
 
 @dataclass(init=False)
@@ -212,7 +210,7 @@ class InstalledManifestData:
             mf_dir_path := d2_project_config.settings.mf_dir_path
         ).is_dir():
             raise NotADirectoryError(
-                f"{mf_dir_path} is not a directory"
+                f"{mf_dir_path} is not a directory",
             )
 
         mf_candidates: list[Path] = []
@@ -231,16 +229,16 @@ class InstalledManifestData:
                         f"Directory {d2_project_config.settings.mf_dir_path} "
                         f"contains too many compatible manifest files, "
                         f"including both {mf_candidates[0]} and "
-                        f"{mf_candidates[1]}."
+                        f"{mf_candidates[1]}.",
                     )
 
         # Returns None if no candidate found
         if not mf_candidates:
-            object.__setattr__(self, 'path', None)
-            return None
+            object.__setattr__(self, "path", None)
+            return
 
         # len(mf_candidates) == 1
-        object.__setattr__(self, 'path', mf_candidates[0])
+        object.__setattr__(self, "path", mf_candidates[0])
 
     def _extract_and_set_name(self) -> None:
         name: str | None = None
@@ -248,47 +246,47 @@ class InstalledManifestData:
         if self.path:
             name = self.path.name
 
-        object.__setattr__(self, 'name', name)
+        object.__setattr__(self, "name", name)
 
     def _determine_pattern_expected(self) -> None:
         if self.path:
             d2_project_validators.str_matches_pattern(
                 value=self.name,
                 stringpattern=d2_project_validators.FileNameStringPattern(
-                    pattern=d2_project_config.settings.expected_mf_name_regex
-                )
+                    pattern=d2_project_config.settings.expected_mf_name_regex,
+                ),
             )
 
-            object.__setattr__(self, 'is_pattern_expected', True)
+            object.__setattr__(self, "is_pattern_expected", True)
 
     def _extract_and_set_extension(self):
         extension: str | None = None
         if self.is_pattern_expected:
             extension = self.path.suffix
-        object.__setattr__(self, 'extension', extension)
+        object.__setattr__(self, "extension", extension)
 
     def _extract_and_set_expected_checksum(self):
         expected_checksum: general_schemas.MD5Checksum | None = None
         expected_checksum_str: str
 
         if self.is_pattern_expected:
-            expected_checksum_str = self.path.stem.split('_')[-1]
+            expected_checksum_str = self.path.stem.split("_")[-1]
             expected_checksum = general_schemas.MD5Checksum(
-                expected_checksum_str
+                expected_checksum_str,
             )
         elif self.path:
             expected_checksum_str = self.path.stem[-32:]
 
             d2_project_validators.str_matches_pattern(
                 value=expected_checksum_str,
-                stringpattern=d2_project_validators.lc_checksum_stringpattern
+                stringpattern=d2_project_validators.lc_checksum_stringpattern,
             )
 
             expected_checksum = general_schemas.MD5Checksum(
-                expected_checksum_str
+                expected_checksum_str,
             )
 
-        object.__setattr__(self, 'expected_checksum', expected_checksum)
+        object.__setattr__(self, "expected_checksum", expected_checksum)
 
     def _compute_and_set_computed_checksum(self):
         computed_checksum: general_schemas.MD5Checksum | None = None
@@ -296,14 +294,14 @@ class InstalledManifestData:
             computed_checksum = (
                 general_schemas.MD5Checksum.calc(self.path)
             )
-        object.__setattr__(self, 'computed_checksum', computed_checksum)
+        object.__setattr__(self, "computed_checksum", computed_checksum)
 
     def _compute_and_set_checksum_match(self):
         checksum_match: bool = False
         if self.expected_checksum and self.computed_checksum:
             if self.computed_checksum == self.expected_checksum:
                 checksum_match = True
-        object.__setattr__(self, 'checksum_match', checksum_match)
+        object.__setattr__(self, "checksum_match", checksum_match)
 
     # ==== Global Methods ====
 
@@ -311,33 +309,30 @@ class InstalledManifestData:
         self,
         mf_loc_data: ManifestLocationData,
         *,
-        force_update: bool = False
+        force_update: bool = False,
     ) -> InstalledManifestData:
         bak_path: Path | None = general_utils.append_suffix(
                 path=self.path,
                 suffix=d2_project_config.settings.mf_bak_ext,
-                overwrite=force_update
+                overwrite=force_update,
             ) if self.path else None
 
         try:
             mf_utils.dl_and_extract_mf_zip(
                 url=general_schemas.ParsedURL.from_base_and_path(
                     base_url=d2_project_config.settings.mf_loc_base_url,
-                    path=mf_loc_data.mf_remote_path
+                    path=mf_loc_data.mf_remote_path,
                 ).url,
                 mf_dir_path=d2_project_config.settings.mf_dir_path,
-                mf_zip_structure=dict(
-                    d2_project_config.settings.mf_zip_structure
-                ),
+                mf_zip_structure=d2_project_config.settings.mf_zip_structure.to_dict(),
             )
-
             files_to_keep: set[Path] = {(new_local_manifest := InstalledManifestData()).path}
 
             if bak_path is not None:
                 files_to_keep.add(bak_path)
 
             general_utils.rm_sibling_files(
-                files_to_keep=files_to_keep
+                files_to_keep=files_to_keep,
             )
 
             return new_local_manifest

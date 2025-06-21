@@ -1,7 +1,12 @@
+"""
+core/utils/general.py
+"""
+
+# ==== Import Annotations from __future__
+
 from __future__ import annotations
 
 # ==== Standard Libraries ====
-
 import logging
 import shutil
 import tempfile
@@ -10,10 +15,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
-
 import d2_project.core.validators as d2_project_validators
 
-# ==== Type Checking ====
+# ==== Type Checking ==========================================================
 
 if TYPE_CHECKING:
     from typing import Callable
@@ -22,9 +26,9 @@ if TYPE_CHECKING:
 # ==== Logging ====
 
 logging.basicConfig(
-    filename='app.log',
+    filename="app.log",
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 # ==== Functions ====
@@ -33,10 +37,9 @@ def mv_item(
     *,
     src: Path,
     dst: Path,
-    overwrite: bool = False
+    overwrite: bool = False,
 ) -> None:
-    """
-    Move a file or directory from 'src' to 'dst'.
+    """Move a file or directory from 'src' to 'dst'.
 
     If 'dst' is an existing directory, the source item is moved inside it
     with the same name. If 'dst' is a file path, the source is moved/renamed
@@ -56,6 +59,7 @@ def mv_item(
 
     Notes:
         Do not call this function many times instead of using shutil.move().
+
     """
     src = src.resolve()
     dst = dst.resolve()
@@ -69,14 +73,14 @@ def mv_item(
         target_path = dst / src.name
     elif src.is_dir():
         raise IsADirectoryError(
-            f"Cannot move directory '{src}' to file path '{dst}'."
+            f"Cannot move directory '{src}' to file path '{dst}'.",
         )
 
     # Check and clear 'target_path' if 'overwrite==True', else raise
     if target_path.exists():
         if not overwrite:
             raise FileExistsError(
-                f"An item '{target_path}' already exists."
+                f"An item '{target_path}' already exists.",
             )
         if target_path.is_dir():
             shutil.rmtree(target_path)
@@ -91,10 +95,9 @@ def extract_zip(
     extract_to: Path,
     overwrite: bool = False,
     expected_file_count: int | None = None,
-    expected_dir_count: int | None = None
+    expected_dir_count: int | None = None,
 ) -> None:
-    """
-    Extracts an archive to a target dir w/ optnl file/dir count validation.
+    """Extract an archive to a target dir w/ optnl file/dir count validation.
 
     This function validates input paths and ensures the extraction
     destination exists. If 'expected_file_count' or 'expected_dir_count' is
@@ -116,6 +119,7 @@ def extract_zip(
         FileNotFoundError: If 'zip_path' doesn't point to a file.
         NotADirectoryError: If 'extract_to' exists but is not a directory.
         ValueError: If the expected file or directory count is violated.
+
     """
     has_expectation: bool = (
         expected_file_count is not None or expected_dir_count is not None
@@ -126,7 +130,7 @@ def extract_zip(
     # Raise if 'extract_to' exists AND isn't a directory
     if extract_to.exists() and not extract_to.is_dir():
         raise NotADirectoryError(
-            f"Must extract to a directory; {extract_to} is not a directory."
+            f"Must extract to a directory; {extract_to} is not a directory.",
         )
 
     # Create 'extract_to' directory, if none exists
@@ -136,7 +140,7 @@ def extract_zip(
         # Assign 'tmp_path' (path to tmp)
         tmp_path: Path = Path(tmp)
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             # Execute if some count of dirs and/or files expected
             if has_expectation:
                 # Assign 'zip_contents' for re-use
@@ -146,8 +150,8 @@ def extract_zip(
                 expected_counts: list[
                     tuple[str, int | None, Callable[[ZipInfo], bool]]
                     ] = [
-                    ('file', expected_file_count, lambda e: not e.is_dir()),
-                    ('dir', expected_dir_count, lambda e: e.is_dir())
+                    ("file", expected_file_count, lambda e: not e.is_dir()),
+                    ("dir", expected_dir_count, lambda e: e.is_dir()),
                 ]
                 for entry_type, expected, predicate in expected_counts:
                     # Execute only if expected_*_count passed
@@ -158,7 +162,7 @@ def extract_zip(
                             actual=sum(
                                 1 for e in zip_contents if predicate(e)
                             ),
-                            entry_source=zip_path
+                            entry_source=zip_path,
                         )
             # Extract archive (at 'zip_path') contents to 'tmp'
             zip_ref.extractall(tmp)
@@ -169,13 +173,14 @@ def extract_zip(
             mv_item(
                 src=file,
                 dst=extract_to,
-                overwrite=overwrite
+                overwrite=overwrite,
             )
 
 def rm_sibling_files(files_to_keep: set[Path]) -> None:
-    """
-    Removes all files and symlinks in the directory containing the specified
-    files, except for the files listed in 'files_to_keep'.
+    """Remove sibling files.
+
+    This function removes all files and symlinks in the directory containing
+    the specified files, except for the files listed in 'files_to_keep'.
 
     Args:
         files_to_keep (set[Path]): A set of file paths to preserve. All
@@ -190,6 +195,7 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
         FileNotFoundError: If any path in 'files_to_keep' does not exist or
             is not a file.
         OSError: If an error occurs while attempting to delete a file.
+
     """
     keep = {f.resolve() for f in files_to_keep}
 
@@ -199,7 +205,7 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
     except StopIteration as e:
         raise ValueError(
             "Passed files_to_keep empty: must include a non-zero exception "
-            "file count"
+            "file count",
         ) from e
 
     directory = sample_file.parent
@@ -211,7 +217,7 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
             raise ValueError(
                 f"Passed file-to-keep '{f}' not in same directory as other "
                 f"passed file '{sample_file}' - all passed files must be "
-                f"siblings."
+                f"siblings.",
             )
 
     # Unlink non-'files_to_keep' paths
@@ -222,17 +228,22 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
             except OSError as e:
                 raise OSError(
                     f"Failed to delete item '{item.name}' from '{directory}': "
-                    f"{e}"
+                    f"{e}",
                 ) from e
 
 def rm_file(file: Path) -> None:
+    """Safely unlink file by validating with is_file() first.
+
+    Args:
+        file (Path): File to remove.
+
+    """
     d2_project_validators.entry_is_file(file)
 
     file.unlink()
 
 def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
-    """
-    Append a suffix to the filename of the given file path.
+    """Append a suffix to the filename of the given file path.
 
     For example, appending ".bak" to "file.txt" results in "file.txt.bak".
 
@@ -245,11 +256,12 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
 
     Returns:
         Path: The new Path object with the appended suffix.
+
     """
     d2_project_validators.entry_is_file(path)
     d2_project_validators.str_matches_pattern(
         value=suffix,
-        stringpattern=d2_project_validators.file_suffix_stringpattern
+        stringpattern=d2_project_validators.file_suffix_stringpattern,
     )
 
     new_path: Path = path.with_name(path.name + suffix)
@@ -257,12 +269,11 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
     return _update_filename(
         old_path=path,
         new_path=new_path,
-        overwrite=overwrite
+        overwrite=overwrite,
     )
 
 def rm_final_suffix(*, path: Path, overwrite: bool = False) -> Path:
-    """
-    Remove the final suffix (file extension) from the given file path.
+    """Remove the final suffix (file extension) from the given file path.
 
     For example, 'archive.tar.gz' becomes 'archive.tar' after one call.
 
@@ -276,23 +287,28 @@ def rm_final_suffix(*, path: Path, overwrite: bool = False) -> Path:
 
     Raises:
         ValueError: If the given (validated) file has no suffix.
+
     """
     d2_project_validators.entry_is_file(path)
 
     if not path.suffix:
         raise ValueError(f"File '{path}' has no suffix to be removed.")
 
-    new_path: Path = path.with_suffix('')
+    new_path: Path = path.with_suffix("")
 
     return _update_filename(
         old_path=path,
         new_path=new_path,
-        overwrite=overwrite
+        overwrite=overwrite,
     )
 
-def _update_filename(old_path: Path, new_path: Path, overwrite: bool) -> Path:
-    """
-    Rename the file from 'old_path' to 'new_path'.
+def _update_filename(
+    *,
+    old_path: Path,
+    new_path: Path,
+    overwrite: bool,
+) -> Path:
+    """Rename the file from 'old_path' to 'new_path'.
 
     Checks if the new path exists and handles overwriting accordingly.
 
@@ -306,6 +322,7 @@ def _update_filename(old_path: Path, new_path: Path, overwrite: bool) -> Path:
 
     Raises:
         FileExistsError: If 'new_path' exists and overwrite is False.
+
     """
     if new_path.exists() and not overwrite:
         raise FileExistsError(f"File with path '{new_path}' already exists.")

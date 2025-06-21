@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
-
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 # ==== Non-Standard Libraries ====
-
 import requests
-from requests.models import Response
 
 # ==== Local Modules ====
-
 import d2_project.core.errors as d2_project_errors
 import d2_project.core.utils.general as general_utils
 
@@ -21,15 +17,16 @@ import d2_project.core.utils.general as general_utils
 if TYPE_CHECKING:
     from typing import IO
 
+    from requests.models import Response
+
 # ==== Functions ====
 
 def request_bungie(
     url: str,
     *,
-    key: str | None = None
+    key: str | None = None,
 ) -> Response:
-    """
-    Function to make GET request to Bungie URL and return parsed response.
+    """Make GET request to Bungie URL and return parsed response.
 
     This function makes a GET request to Bungie with optional use of an
     API key. If the response fails, a ConnectionError is raised. The
@@ -46,6 +43,7 @@ def request_bungie(
 
     Returns:
         BungieResponseData: Parsed JSON response from Bungie.
+
     """
     headers = {"X-API-KEY": key} if key else None
 
@@ -54,7 +52,7 @@ def request_bungie(
     if not response.ok:
         raise ConnectionError(
             f"Request to Bungie failed with status {response.status_code}: "
-            f"{response.reason}"
+            f"{response.reason}",
         )
 
     return response
@@ -63,10 +61,9 @@ def dl_bungie_content(
     *,
     file: IO[bytes],
     url: str,
-    stream: bool = True
+    stream: bool = True,
 ) -> bool:
-    """
-    Function to download and write Bungie content to a file.
+    """Download and write Bungie content to a file.
 
     This function tries to stream the content of the response to the passed
     file, streaming if stream is passed. If an error occurs with the request
@@ -87,6 +84,7 @@ def dl_bungie_content(
         ValueError: If passed URL is invalid.
         DownloadError: If an error occurs with the request.
         OSError: If another OSError occurs with writing the file.
+
     """
     try:
         with requests.get(url, stream=stream, timeout=(3, 10)) as response:
@@ -105,7 +103,7 @@ def dl_bungie_content(
         raise d2_project_errors.DownloadError(
             url=url,
             stream=stream,
-            original_exception=e
+            original_exception=e,
         ) from e
 
     except OSError as e:
@@ -116,7 +114,7 @@ def dl_and_extract_mf_zip(
     url: str,
     mf_dir_path: Path,
     mf_zip_structure: dict[str, int],
-    overwrite: bool = False
+    overwrite: bool = False,
 ) -> None:
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         tmp_path = Path(tmp.name)
@@ -124,7 +122,7 @@ def dl_and_extract_mf_zip(
         dl_bungie_content(
             url=url,
             file=tmp,
-            stream=True
+            stream=True,
         )
 
         tmp.flush()
@@ -132,9 +130,9 @@ def dl_and_extract_mf_zip(
         general_utils.extract_zip(
             zip_path=tmp_path,
             extract_to=mf_dir_path,
-            expected_dir_count=mf_zip_structure['expected_dir_count'],
-            expected_file_count=mf_zip_structure['expected_file_count'],
-            overwrite=overwrite
+            expected_dir_count=mf_zip_structure["expected_dir_count"],
+            expected_file_count=mf_zip_structure["expected_file_count"],
+            overwrite=overwrite,
         )
     finally:
         tmp_path.unlink(missing_ok=True)

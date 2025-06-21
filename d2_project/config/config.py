@@ -1,5 +1,4 @@
-"""
-config/config.py
+"""config/config.py
 
 Generates configuration and sanity classes from TOML files.
 
@@ -15,17 +14,14 @@ defaults to regenerate a TOML file.
 from __future__ import annotations
 
 # ==== Standard Library Imports ====
-
 import re
 import textwrap
-
-from dataclasses import dataclass, fields, MISSING
-from string import Template
+from dataclasses import MISSING, dataclass, fields
 from pathlib import Path
+from string import Template
 from typing import TYPE_CHECKING
 
 # ==== Non-Standard Library Imports ====
-
 import toml
 
 # ==== Dataclasses Needed For TypeAliases ====
@@ -33,16 +29,25 @@ import toml
 
 @dataclass(frozen=True)
 class ManifestZipStructure:
-    """
-    Dataclass for manifest zip structure.
+    """Dataclass for manifest zip structure.
 
     Attributes:
         expected_file_count (int): Expected number of files in the archive.
-        expected_dir_count (int): Expected number of directories in the 
+        expected_dir_count (int): Expected number of directories in the
             archive.
+
     """
+
     expected_file_count: int
     expected_dir_count: int
+
+    def to_dict(self) -> dict[str, int]:
+        return {f.name: getattr(self, f.name) for f in fields(self)}
+
+_manifest_zip_structure = ManifestZipStructure(
+        expected_dir_count=0,
+        expected_file_count=1,
+    )
 
 # ==== Type Checking ====
 
@@ -50,7 +55,7 @@ if TYPE_CHECKING:
 
     # ==== Standard Library Imports ====
 
-    from typing import TypeAlias
+    from typing import Self, TypeAlias
 
     # ==== Custom TypeAlias Import ====
 
@@ -65,49 +70,49 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class SettingsSanity:
-    """
-    Superclass for Settings and Sanity classes for sharing 
+    """Superclass for Settings and Sanity classes for sharing
     regenerate_toml() and related functions, as well as from_toml().
     """
+
     def regenerate_toml(
         self,
         path: Path,
         *,
-        exclude_fields: set[str] | None = None
+        exclude_fields: set[str] | None = None,
     ) -> None:
-        """
-        Regenerate TOML file from class attribute defaults.
+        """Regenerate TOML file from class attribute defaults.
 
         This function regenerates a TOML file at the given path 'path' from
-        the class's attribute defaults, ignoring fields with names listed 
-        in 'exclude_fields'. It serialises each field using 
-        _toml_serialise_value() and writes them to the path in a structured 
-        fstring format for TOML, overwriting any existing file of the same 
+        the class's attribute defaults, ignoring fields with names listed
+        in 'exclude_fields'. It serialises each field using
+        _toml_serialise_value() and writes them to the path in a structured
+        fstring format for TOML, overwriting any existing file of the same
         path.
 
         Args:
             path (Path): Path to TOML file to write to.
-            exclude_fields (set[str] | None, optional): Optional set of 
+            exclude_fields (set[str] | None, optional): Optional set of
                 fields to ignore. (defaults to None).
+
         """
-        with open(path, 'wt', encoding='utf-8') as toml_open:
+        with Path.open(path, "w", encoding="utf-8") as toml_open:
             for field in fields(self):
-                if (exclude_fields is not None) and (field.name in exclude_fields):
+                if exclude_fields is not None and field.name in exclude_fields:
                     continue
 
-                serialised_lines: list[str] = ['']
-                if not field.default == MISSING:
+                serialised_lines: list[str] = [""]
+                if field.default != MISSING:
                     serialised_lines = self._toml_serialise_value(
-                        value = field.default
+                        value = field.default,
                     ).splitlines()
 
                 toml_open.write(f"# {field.name} = {serialised_lines[0]}\n")
-                for line in serialised_lines[1:]:
-                    toml_open.write(f"# {line}\n")
+                toml_open.writelines(
+                    f"# {line}\n" for line in serialised_lines[1:]
+                )
 
     def _needs_triple_quotes(self, s: str) -> bool:
-        """
-        Determine whether a string needs triple quotes.
+        """Determine whether a string needs triple quotes.
 
         This function determines whether or not a string requires triple
         quotes for a TOML file.
@@ -116,16 +121,16 @@ class SettingsSanity:
             s (str): String to check.
 
         Returns:
-            bool: Whether the string contains the listed special 
+            bool: Whether the string contains the listed special
                 characters.
+
         """
-        special_chars: list[str] = ['\n', '\r', '"', "'"]
+        special_chars: list[str] = ["\n", "\r", '"', "'"]
 
         return any(c in s for c in special_chars)
 
     def _is_bare_key(self, s: str) -> bool:
-        """
-        Determine whether a given key string is bare for TOML file.
+        """Determine whether a given key string is bare for TOML file.
 
         This function determines whether a key for a TOML file, passed as a
         string, is a fullmatch with a regex representing allowed characters
@@ -137,12 +142,12 @@ class SettingsSanity:
 
         Returns:
             bool: Whether the string can be used as a bare key.
+
         """
-        return re.fullmatch(r'[A-Za-z0-9_-]+', s) is not None
+        return re.fullmatch(r"[A-Za-z0-9_-]+", s) is not None
 
     def _toml_serialise_value(self, value: TomlValue) -> str:
-        """
-        Serialise value for use in TOML file.
+        """Serialise value for use in TOML file.
 
         This function converts values from attribute field defaults into
         strings for writing to a TOML file, converting types to usable TOML
@@ -153,8 +158,9 @@ class SettingsSanity:
 
         Returns:
             str: Serialised value.
+
         """
-        serialised: str = ''
+        serialised: str = ""
 
         if isinstance(value, bool):
             serialised = "true" if value else "false"
@@ -168,7 +174,9 @@ class SettingsSanity:
         if isinstance(value, str):
             if self._needs_triple_quotes(value):
                 escaped: str = value.replace('"""', '\\"""')
-                serialised = '"""\n' + textwrap.indent(escaped, '    ') + '\n"""'
+                serialised = (
+                    '"""\n' + textwrap.indent(escaped, "    ") + '\n"""'
+                )
             else:
                 serialised =  f'"{value}"'
 
@@ -184,8 +192,7 @@ class SettingsSanity:
                         bare_key = f'"{attribute_name}"'
 
                     parts.append(
-                        f'{bare_key} = '
-                        f'{self._toml_serialise_value(getattr(value, attribute.name))}'
+                        f"{bare_key} = {self._toml_serialise_value(getattr(value, attribute.name))}",
                     )
 
                 serialised = "{ " + ", ".join(parts) + " }"
@@ -195,13 +202,12 @@ class SettingsSanity:
     # ==== Class Methods ====
 
     @classmethod
-    def from_toml(cls, path: Path):
-        """
-        Generator for config instance object from TOML file at 'path'.
+    def from_toml(cls, path: Path) -> Self:
+        """Generate config instance object from TOML file at 'path'.
 
-        This function generates the 'sanity/settings' object for use 
-        across the project codebase. It returns a Sanity/Settings class 
-        instance with any attributes set in 'path' replacing the defaults 
+        This function generates the 'sanity/settings' object for use
+        across the project codebase. It returns a Sanity/Settings class
+        instance with any attributes set in 'path' replacing the defaults
         of Sanity/Settings.
 
         Args:
@@ -209,14 +215,14 @@ class SettingsSanity:
 
         Returns:
             Sanity: The usable instance of Sanity.
+
         """
         data = toml.load(path)
         return cls(**data)
 
 @dataclass(frozen=True)
 class Sanity(SettingsSanity):
-    """
-    Class for generating 'sanity' object for sanity checking.
+    """Class for generating 'sanity' object for sanity checking.
 
     This class is used to generate a 'sanity' object for use across the
     program with callable sanity checkers for each non-flag attribute.
@@ -242,14 +248,16 @@ class Sanity(SettingsSanity):
         check_remote_mf_dir(): Sanity checker for 'expected_remote_lang_dir'
             attribute.
         disable_strict(): Sets 'self.strict' to False.
+
     """
+
     # ==== Flags ====
 
     strict: bool = False
 
     # ==== Remote Manifest Location Attributes ====
 
-    expected_remote_lang_dir: str = '/common/destiny_content/sqlite/'
+    expected_remote_lang_dir: str = "/common/destiny_content/sqlite/"
 
     # ==== Methods ====
 
@@ -257,8 +265,7 @@ class Sanity(SettingsSanity):
         self,
         remote_path: str,
     ) -> None:
-        """
-        Sanity checker for remote manifest directory.
+        """Sanity checker for remote manifest directory.
 
         This function checks a remote path (to the manifest directory)
         against the attribute value for expected_remote_lang_dir. If the
@@ -270,26 +277,24 @@ class Sanity(SettingsSanity):
 
         Raises:
             ValueError: If self.strict and the check fails.
+
         """
         if not remote_path.startswith(self.expected_remote_lang_dir):
             if self.strict:
                 raise ValueError(
                     f"Invalid remote manifest format: '{remote_path}'. "
-                    f"Bungie may have changed manifest path format."
+                    f"Bungie may have changed manifest path format.",
                 )
 
             print(f"{remote_path} != {self.expected_remote_lang_dir}")
 
-    def disable_strict(self):
-        """
-        Sets Sanity instance attribute 'strict' to False.
-        """
-        object.__setattr__(self, 'strict', False)
+    def disable_strict(self) -> None:
+        """Set Sanity instance attribute 'strict' to False."""
+        object.__setattr__(self, "strict", False)
 
 @dataclass(frozen=True)
 class Settings(SettingsSanity):
-    """
-    Class for generating 'settings' object for sanity checking.
+    """Class for generating 'settings' object for sanity checking.
 
     This class is used to generate a 'settings' object for use across the
     program.
@@ -309,80 +314,90 @@ class Settings(SettingsSanity):
         mf_starts_with (str): Manifest filename start.
         mf_zip_structure (MappingProxyType): Zip structure of Bungie's
             manifest archive.
-        mf_finder_url:
+        mf_finder_url (url): Bungies manifest finder URL.
+        mf_loc_base_url (str): Base URL for manifest location.
+        mf_lang (str): Desired manifest language.
+        api_key (str): API key.
+        force_update (bool): Whether to force manifest update.
+        mf_dir_path (Path): Path to manifest directory.
+        mf_bak_ext (str): Backup manifest file extension.
 
     Properties:
+        expected_mf_name_template (Template): Template for expected
+            manifest name format.
+        expected_mf_name_regex (str): Template with substituted values.
 
     Class methods:
         from_toml(): Generator for 'sanity: Sanity' object.
+
     """
+
     # ==== Private Manifest Filename Attributes ====
 
-    _expected_mf_name_template_str: str = '^${starts_with}[a-fA-F0-9]{32}${extension}$$'
+    _expected_mf_name_template_str: str = (
+        "^${starts_with}[a-fA-F0-9]{32}${extension}$$"
+    )
 
     # ==== Public Manifest Filename Attributes
 
-    mf_extension: str = '.content'
-    mf_starts_with: str = 'world_sql_content_'
-    mf_zip_structure: ManifestZipStructure = ManifestZipStructure(
-        expected_dir_count=0,
-        expected_file_count=1
-    )
+    mf_extension: str = ".content"
+    mf_starts_with: str = "world_sql_content_"
+    mf_zip_structure: ManifestZipStructure = _manifest_zip_structure
 
     # ==== Bungie Request Attributes ====
 
-    mf_finder_url: str = 'https://www.bungie.net/Platform/Destiny/Manifest'
-    mf_loc_base_url: str = 'https://www.bungie.net'
-    mf_lang: str = 'en'
-    api_key: str = 'd4705221d56b4040b8c5c6b4ebd58757'
+    mf_finder_url: str = "https://www.bungie.net/Platform/Destiny/Manifest"
+    mf_loc_base_url: str = "https://www.bungie.net"
+    mf_lang: str = "en"
+    api_key: str = "d4705221d56b4040b8c5c6b4ebd58757"
     force_update: bool = True
 
     # ==== Local Filesystem Attributes ====
 
-    mf_dir_path: Path = Path(__file__).resolve().parents[1] / 'manifest'
-    mf_bak_ext: str = '.bak'
+    mf_dir_path: Path = Path(__file__).resolve().parents[1] / "manifest"
+    mf_bak_ext: str = ".bak"
 
     # ==== Properties ====
 
     @property
     def expected_mf_name_template(self) -> Template:
-        """
-        Converts _expected_mf_name_template_str to Template.
+        """Converts _expected_mf_name_template_str to Template.
 
-        This function converts the configurable 
+        This function converts the configurable
         _expected_mf_name_template_str attribute to a Template object for
         substitution with expected_mf_name_regex().
 
         Returns:
             Template: Template for expected manifest filename.
+
         """
         return Template(self._expected_mf_name_template_str)
 
     @property
     def expected_mf_name_regex(self) -> str:
-        """
-        Substitutes template with configurable extension and start.
+        """Substitutes template with configurable extension and start.
 
         This function substitutes mf_extension and mf_starts_with into the
         Template from expected_mf_name_template().
 
         Returns:
-            str: Regular expression for expected manfifest filename 
+            str: Regular expression for expected manfifest filename
                 structure.
+
         """
         return self.expected_mf_name_template.substitute(
             starts_with=self.mf_starts_with,
-            extension=self.mf_extension
+            extension=self.mf_extension,
         )
 
 # ==== Instance Generation ====
 
 settings: Settings = Settings.from_toml(
-    Path(__file__).resolve().parent / "settings.toml"
+    Path(__file__).resolve().parent / "settings.toml",
 )
 
 sanity: Sanity = Sanity.from_toml(
-    Path(__file__).resolve().parent / "sanity.toml"
+    Path(__file__).resolve().parent / "sanity.toml",
 )
 
 # ==== TOML Regeneration ====

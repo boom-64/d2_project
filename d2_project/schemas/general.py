@@ -1,26 +1,22 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
-
 import hashlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from urllib.parse import urljoin
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 # ==== Non-Standard Libraries ====
-
 import validators
 
 # ==== Local Libraries ====
-
 import d2_project.core.validators as d2_project_validators
 
 # ==== Type Checking ====
 
 if TYPE_CHECKING:
-    from urllib.parse import ParseResult
     from pathlib import Path
+    from urllib.parse import ParseResult
 
 # ==== Classes ====
 
@@ -37,22 +33,16 @@ class MD5Checksum:
         if not self.from_calc:
             d2_project_validators.str_matches_pattern(
                 value=lc_val,
-                stringpattern=d2_project_validators.lc_checksum_stringpattern
+                stringpattern=d2_project_validators.lc_checksum_stringpattern,
             )
 
-        object.__setattr__(self, 'val', lc_val)
-
-    def __eq__(self, other):
-        if not isinstance(other, MD5Checksum):
-            return NotImplemented
-        return self.val == other.val
+        object.__setattr__(self, "val", lc_val)
 
     # ==== Public Methods ====
 
     @classmethod
-    def calc(cls, path: Path) -> 'MD5Checksum':
-        """
-        Calculate the MD5 hash of the given file.
+    def calc(cls, path: Path) -> MD5Checksum:
+        """Calculate the MD5 hash of the given file.
 
         Args:
             path (Path): Path to the file.
@@ -63,14 +53,15 @@ class MD5Checksum:
         Raises:
             TypeError: If 'path' type is not Path.
             ValueError: If 'path' does not refer to a file.
+
         """
         d2_project_validators.entry_is_file(path)
         # Assign 'hasher' - an MD5 hash object.
         hasher = hashlib.md5()
 
-        with path.open('rb') as f:
+        with path.open("rb") as f:
             # Update 'hasher' with each 8KB chunk
-            for chunk in iter(lambda: f.read(8192), b''):
+            for chunk in iter(lambda: f.read(8192), b""):
                 hasher.update(chunk)
 
         # Return 'hexdigest()' of 'hasher' MD5 hash object
@@ -79,8 +70,7 @@ class MD5Checksum:
     # ==== Custom Exceptions ====
 
     class MismatchError(Exception):
-        """
-        Custom exception for checksum mismatches.
+        """Custom exception for checksum mismatches.
 
         This exception is raised when a calculated checksum does not match
         the expected checksum. It includes both the expected and actual
@@ -90,6 +80,7 @@ class MD5Checksum:
             expected (core.schemas.MD5Checksum): Expected checksum.
             computed (core.schemas.MD5Checksum): Actual checksum calculated.
         """
+
         expected: MD5Checksum
         computed: MD5Checksum
 
@@ -97,20 +88,19 @@ class MD5Checksum:
             self,
             *,
             expected: MD5Checksum,
-            computed: MD5Checksum
+            computed: MD5Checksum,
         ) -> None:
             self.expected = expected
             self.computed = computed
 
             super().__init__(
                 f"Checksum mismatch: expected {self.expected.val}, got "
-                f"{self.computed.val}."
+                f"{self.computed.val}.",
             )
 
 @dataclass(frozen=True)
 class ParsedURL:
-    """
-    Represents a URL with its base URL and path components.
+    """Represents a URL with its base URL and path components.
 
     This class parses the provided URL into its base URL and path
     components. It also allows reconstruction of the full URL from these
@@ -134,7 +124,9 @@ class ParsedURL:
         TypeError: If any argument types are incorrect.
         ValueError: If the reconstructed URL is valid according to the
             'validators.url()' check.
+
     """
+
     url: str
     base_url: str
     path: str
@@ -142,9 +134,8 @@ class ParsedURL:
     # ==== Public Methods ====
 
     @classmethod
-    def from_full_url(cls, full_url: str) -> 'ParsedURL':
-        """
-        Creates a URL instance by parsing a full URL string.
+    def from_full_url(cls, full_url: str) -> ParsedURL:
+        """Create a URL instance by parsing a full URL string.
 
         Args:
             full_url (str): The full URL to parse and validate.
@@ -155,8 +146,9 @@ class ParsedURL:
         Raises:
             ValueError: If the passed full_url is not a valid URL according
                 to validators.url().
+
         """
-        full_url = full_url.strip().rstrip('/')
+        full_url = full_url.strip().rstrip("/")
 
         if not validators.url(full_url):
             raise ValueError(f"Passed URL '{full_url}' is invalid.")
@@ -164,18 +156,17 @@ class ParsedURL:
         parsed_url: ParseResult = urlparse(full_url)
 
         computed_base_url: str = f"{parsed_url.scheme}://{parsed_url.netloc}"
-        computed_path: str = parsed_url.path.strip('/')
+        computed_path: str = parsed_url.path.strip("/")
 
         return cls(
             url=full_url,
             base_url=computed_base_url,
-            path=computed_path
+            path=computed_path,
         )
 
     @classmethod
-    def from_base_and_path(cls, *, base_url: str, path: str) -> 'ParsedURL':
-        """
-        Creates a URL instance from a base URL and a path.
+    def from_base_and_path(cls, *, base_url: str, path: str) -> ParsedURL:
+        """Create a URL instance from a base URL and a path.
 
         Args:
             base_url (str): The base URL, including scheme and netloc.
@@ -187,11 +178,12 @@ class ParsedURL:
         Raises:
             ValueError: If the reconstructed URL is invalid according to
                 validators.url().
-        """
-        cleaned_base_url = base_url.strip().rstrip('/')
-        cleaned_path = path.strip().strip('/')
 
-        computed_url = urljoin(cleaned_base_url + '/', cleaned_path)
+        """
+        cleaned_base_url = base_url.strip().rstrip("/")
+        cleaned_path = path.strip().strip("/")
+
+        computed_url = urljoin(cleaned_base_url + "/", cleaned_path)
 
         parsed_url: ParseResult = urlparse(computed_url)
         full_path = parsed_url.path
