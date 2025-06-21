@@ -12,10 +12,32 @@ defaults to regenerate a TOML file.
 
 # ==== Standard Library Imports ====
 
-from dataclasses import dataclass
+import re
+import textwrap
+
+from dataclasses import dataclass, fields, MISSING
 from string import Template
 from pathlib import Path
 from types import MappingProxyType
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    
+    # ==== Standard Library Imports ====
+    
+    from collections.abc import Mapping
+    from typing import TypeAlias
+
+    # ==== Custom TypeAlias Import ====
+
+    TomlValue: TypeAlias = (
+        bool
+        | Path
+        | int
+        | float
+        | str
+        | Mapping[str, 'TomlValue']
+    )
 
 # ==== Non-Standard Library Imports ====
 
@@ -24,7 +46,68 @@ import toml
 # ==== Dataclasses ====
 
 @dataclass(frozen=True)
-class Sanity:
+class SettingsSanity:
+    def regenerate_toml(
+        self,
+        path: Path,
+        *,
+        exclude_fields: set[str] | None = None
+    ) -> None:
+        with open(path, 'w') as toml_open:
+            for field in fields(self):
+                if (exclude_fields is not None) and (field.name in exclude_fields):
+                    continue
+                serialised_lines: list[str] = ['']
+                if not field.default == MISSING:
+                    serialised_lines = self._toml_serialise_value(
+                        value = field.default
+                    ).splitlines()
+                toml_open.write(f"# {field.name} = {serialised_lines[0]}\n")
+                for line in serialised_lines[1:]:
+                    toml_open.write(f"# {line}\n")
+
+    def _needs_triple_quotes(self, s: str) -> bool:
+        special_chars = ['\n', '\r', '"', "'"]
+
+        return any(c in s for c in special_chars)
+
+    def _is_bare_key(self, s: str) -> bool:
+        return (re.fullmatch(r'[A-Za-z0-9_-]+', s) is not None)
+
+    def _toml_serialise_value(self, value: 'TomlValue') -> str:
+        if isinstance(value, bool):
+            return "true" if value else "false"
+
+        elif isinstance(value, Path):
+            return f'"{value}"'
+        
+        elif isinstance(value, (int, float)):
+            return str(value)
+        
+        elif isinstance(value, str):
+            if self._needs_triple_quotes(value):
+                escaped: str = value.replace('"""', '\\"""')
+                return '"""\n' + textwrap.indent(escaped, '    ') + '\n"""'
+
+            else:
+                return f'"{value}"'
+            
+        else:
+            if not value:
+                return "{ }"
+            
+            parts: list[str] = []
+            for key, val in value.items():
+                    bare_key: str = key
+                    if not self._is_bare_key(key):
+                        bare_key = f'"{key}"'
+
+                    parts.append(f'{bare_key} = {self._toml_serialise_value(value=val)}')
+
+            return "{ " + ", ".join(parts) + " }"
+        
+@dataclass(frozen=True)
+class Sanity(SettingsSanity):
     """
     Class for generating 'sanity' object for sanity checking.
 
@@ -117,7 +200,7 @@ class Sanity:
         object.__setattr__(self, 'strict', False)
 
 @dataclass(frozen=True)
-class Settings:
+class Settings(SettingsSanity):
     """
     Class for generating 'settings' object for sanity checking.
 
@@ -204,20 +287,5 @@ sanity: Sanity = Sanity.from_toml(
 
 # ==== TOML Regeneration ====
 
-# import d2_project.core.utils.general as general_utils
-
-"""
-general_utils.regenerate_toml(
-    data_class=settings,
-    path=Path(__file__).resolve().parent / "settings.toml",
-    exclude_fields=None
-)
-"""
-
-"""
-general_utils.regenerate_toml(
-    data_class=sanity,
-    path=Path(__file__).resolve().parent / "settings.toml",
-    exclude_fields={'strict'}
-)
-"""
+settings.regenerate_toml(Path(__file__).resolve().parent / "settings.toml")
+sanity.regenerate_toml(Path(__file__).resolve().parent / "sanity.toml", exclude_fields={'strict'})
