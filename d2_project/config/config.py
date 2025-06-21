@@ -287,5 +287,5 @@ sanity: Sanity = Sanity.from_toml(
 
 # ==== TOML Regeneration ====
 
-settings.regenerate_toml(Path(__file__).resolve().parent / "settings.toml")
-sanity.regenerate_toml(Path(__file__).resolve().parent / "sanity.toml", exclude_fields={'strict'})
+# settings.regenerate_toml(Path(__file__).resolve().parent / "settings.toml")
+# sanity.regenerate_toml(Path(__file__).resolve().parent / "sanity.toml", exclude_fields={'strict'})
