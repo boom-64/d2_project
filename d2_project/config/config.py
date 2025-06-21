@@ -10,6 +10,10 @@ utils.general.regenerate_toml() on a class instance which uses the class
 defaults to regenerate a TOML file.
 """
 
+# ==== Import Annotations From __future__ ====
+
+from __future__ import annotations
+
 # ==== Standard Library Imports ====
 
 import re
@@ -18,14 +22,20 @@ import textwrap
 from dataclasses import dataclass, fields, MISSING
 from string import Template
 from pathlib import Path
-from types import MappingProxyType
 from typing import TYPE_CHECKING
+
+# ==== Non-Standard Library Imports ====
+
+import toml
+
+from frozendict import frozendict
+
+# ==== Type Checking ====
 
 if TYPE_CHECKING:
     
     # ==== Standard Library Imports ====
     
-    from collections.abc import Mapping
     from typing import TypeAlias
 
     # ==== Custom TypeAlias Import ====
@@ -36,12 +46,8 @@ if TYPE_CHECKING:
         | int
         | float
         | str
-        | Mapping[str, 'TomlValue']
+        | frozendict[str, 'TomlValue']
     )
-
-# ==== Non-Standard Library Imports ====
-
-import toml
 
 # ==== Dataclasses ====
 
@@ -74,7 +80,7 @@ class SettingsSanity:
     def _is_bare_key(self, s: str) -> bool:
         return (re.fullmatch(r'[A-Za-z0-9_-]+', s) is not None)
 
-    def _toml_serialise_value(self, value: 'TomlValue') -> str:
+    def _toml_serialise_value(self, value: TomlValue) -> str:
         if isinstance(value, bool):
             return "true" if value else "false"
 
@@ -237,7 +243,7 @@ class Settings(SettingsSanity):
 
     mf_extension: str = '.content'
     mf_starts_with: str = 'world_sql_content_'
-    mf_zip_structure: MappingProxyType[str, int] = MappingProxyType({
+    mf_zip_structure: frozendict[str, int] = frozendict({
         'expected_dir_count': 0,
         'expected_file_count': 1
     })
