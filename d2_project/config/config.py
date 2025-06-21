@@ -28,7 +28,13 @@ from typing import TYPE_CHECKING
 
 import toml
 
-from frozendict import frozendict
+# ==== Dataclasses Needed For TypeAliases ====
+# Cannot use TypeAliases from below here.
+
+@dataclass(frozen=True)
+class ManifestZipStructure:
+    expected_file_count: int
+    expected_dir_count: int
 
 # ==== Type Checking ====
 
@@ -46,10 +52,8 @@ if TYPE_CHECKING:
         | int
         | float
         | str
-        | frozendict[str, 'TomlValue']
+        | ManifestZipStructure
     )
-
-# ==== Dataclasses ====
 
 @dataclass(frozen=True)
 class SettingsSanity:
@@ -98,17 +102,17 @@ class SettingsSanity:
             else:
                 return f'"{value}"'
             
-        else:
+        else: # Must be ManifestZipStructure instance
             if not value:
                 return "{ }"
             
             parts: list[str] = []
-            for key, val in value.items():
-                    bare_key: str = key
-                    if not self._is_bare_key(key):
-                        bare_key = f'"{key}"'
+            for attribute in fields(value):
+                bare_key: str = (attribute_name:=attribute.name)
+                if not self._is_bare_key(attribute_name):
+                    bare_key = f'"{attribute_name}"'
 
-                    parts.append(f'{bare_key} = {self._toml_serialise_value(value=val)}')
+                parts.append(f'{bare_key} = {self._toml_serialise_value(getattr(value, attribute.name))}')
 
             return "{ " + ", ".join(parts) + " }"
         
@@ -243,10 +247,10 @@ class Settings(SettingsSanity):
 
     mf_extension: str = '.content'
     mf_starts_with: str = 'world_sql_content_'
-    mf_zip_structure: frozendict[str, int] = frozendict({
-        'expected_dir_count': 0,
-        'expected_file_count': 1
-    })
+    mf_zip_structure: ManifestZipStructure = ManifestZipStructure(
+        expected_dir_count=0,
+        expected_file_count=1
+    )
 
     # ==== Bungie Request Attributes ====
 
