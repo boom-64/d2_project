@@ -10,8 +10,8 @@ mf_loc_data: mf_schemas.ManifestLocationData = (
     mf_schemas.ManifestLocationData(
         mf_utils.request_bungie(
             url=d2_project_config.settings.mf_finder_url,
-            key=d2_project_config.settings.api_key
-        )
+            key=d2_project_config.settings.api_key,
+        ),
     )
 )
 

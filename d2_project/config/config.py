@@ -1,6 +1,4 @@
-"""config/config.py
-
-Generates configuration and sanity classes from TOML files.
+"""Generate configuration and sanity classes from TOML files.
 
 This module contains configuration and sanity class definitions and
 instances generated using their respective TOML files. These classes
@@ -42,6 +40,12 @@ class ManifestZipStructure:
     expected_dir_count: int
 
     def to_dict(self) -> dict[str, int]:
+        """Convert instance to dictionary.
+
+        Returns:
+            dict[str, int]: Dictionary of instance fields and values.
+
+        """
         return {f.name: getattr(self, f.name) for f in fields(self)}
 
 _manifest_zip_structure = ManifestZipStructure(
@@ -70,8 +74,10 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class SettingsSanity:
-    """Superclass for Settings and Sanity classes for sharing
-    regenerate_toml() and related functions, as well as from_toml().
+    """Superclass for Settings and Sanity classes.
+
+    This class is for sharing regenerate_toml() and related functions, as well
+    as from_toml().
     """
 
     def regenerate_toml(
@@ -187,12 +193,19 @@ class SettingsSanity:
             else:
                 parts: list[str] = []
                 for attribute in fields(value):
-                    bare_key: str = (attribute_name:=attribute.name)
+                    key: str = (attribute_name:=attribute.name)
                     if not self._is_bare_key(attribute_name):
-                        bare_key = f'"{attribute_name}"'
-
+                        key = f'"{attribute_name}"'
+                    serialised_value_str: str = (
+                        self._toml_serialise_value(
+                            getattr(
+                                value,
+                                attribute.name,
+                            ),
+                        )
+                    )
                     parts.append(
-                        f"{bare_key} = {self._toml_serialise_value(getattr(value, attribute.name))}",
+                        f"{key} = {serialised_value_str}",
                     )
 
                 serialised = "{ " + ", ".join(parts) + " }"
@@ -401,6 +414,9 @@ sanity: Sanity = Sanity.from_toml(
 )
 
 # ==== TOML Regeneration ====
-
-# settings.regenerate_toml(Path(__file__).resolve().parent / "settings.toml")
-# sanity.regenerate_toml(Path(__file__).resolve().parent / "sanity.toml", exclude_fields={'strict'})
+"""
+sanity_toml: Path = Path(__file__).resolve().parent / "sanity.toml"
+settings_toml: Path = Path(__file__).resolve().parent / "settings.toml"
+settings.regenerate_toml(settings_toml,)
+sanity.regenerate_toml(sanity_toml, exclude_fields={'strict'},)
+"""
