@@ -22,6 +22,9 @@ from typing import TYPE_CHECKING
 # ==== Non-Standard Library Imports ====
 import toml
 
+# ==== Local Module Imports ====
+import d2_project.core.errors as d2_project_errors
+
 # ==== Dataclasses Needed For TypeAliases ====
 # Cannot use TypeAliases from below here.
 
@@ -294,9 +297,8 @@ class Sanity(SettingsSanity):
         """
         if not remote_path.startswith(self.expected_remote_lang_dir):
             if self.strict:
-                raise ValueError(
-                    f"Invalid remote manifest format: '{remote_path}'. "
-                    f"Bungie may have changed manifest path format.",
+                raise d2_project_errors.ManifestRemotePathError(
+                    path=remote_path,
                 )
 
             print(f"{remote_path} != {self.expected_remote_lang_dir}")

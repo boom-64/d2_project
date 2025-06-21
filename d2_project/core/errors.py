@@ -1,7 +1,7 @@
-
+"""Custom errors."""
 # ==== Classes ====
 
-class DownloadError(Exception):
+class DownloadError(ConnectionError):
     """Custom exception for exceptions which occur during a download.
 
     This exception is raised when a file fails to download. It includes
@@ -21,14 +21,37 @@ class DownloadError(Exception):
         *,
         url: str,
         stream: bool,
-        original_exception: Exception
+        original_exception: Exception,
     ) -> None:
+        """Initialise class."""
+        self.url = url
         self.stream = stream
         self.original_exception = original_exception
 
-        message = (
+        message: str = (
             f"Failed to download content from {url} "
             f"(stream={stream}): {original_exception}"
         )
 
+        super().__init__(message)
+
+class ManifestRemotePathError(ValueError):
+    """Custom exception for unexpected manifest remote paths.
+
+    Attributes:
+        path (str): Manifest remote path.
+
+    """
+
+    def __init__(
+        self,
+        *,
+        path: str,
+    ) -> None:
+        """Initialise class."""
+        self.path = path
+        message: str = (
+            f"Invalid remote manifest format: '{self.path}'. "
+            f"Bungie may have changed manifest path format."
+        )
         super().__init__(message)
