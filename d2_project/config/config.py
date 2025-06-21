@@ -33,15 +33,23 @@ import toml
 
 @dataclass(frozen=True)
 class ManifestZipStructure:
+    """
+    Dataclass for manifest zip structure.
+
+    Attributes:
+        expected_file_count (int): Expected number of files in the archive.
+        expected_dir_count (int): Expected number of directories in the 
+            archive.
+    """
     expected_file_count: int
     expected_dir_count: int
 
 # ==== Type Checking ====
 
 if TYPE_CHECKING:
-    
+
     # ==== Standard Library Imports ====
-    
+
     from typing import TypeAlias
 
     # ==== Custom TypeAlias Import ====
@@ -57,65 +65,154 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class SettingsSanity:
+    """
+    Superclass for Settings and Sanity classes for sharing 
+    regenerate_toml() and related functions, as well as from_toml().
+    """
     def regenerate_toml(
         self,
         path: Path,
         *,
         exclude_fields: set[str] | None = None
     ) -> None:
-        with open(path, 'w') as toml_open:
+        """
+        Regenerate TOML file from class attribute defaults.
+
+        This function regenerates a TOML file at the given path 'path' from
+        the class's attribute defaults, ignoring fields with names listed 
+        in 'exclude_fields'. It serialises each field using 
+        _toml_serialise_value() and writes them to the path in a structured 
+        fstring format for TOML, overwriting any existing file of the same 
+        path.
+
+        Args:
+            path (Path): Path to TOML file to write to.
+            exclude_fields (set[str] | None, optional): Optional set of 
+                fields to ignore. (defaults to None).
+        """
+        with open(path, 'wt', encoding='utf-8') as toml_open:
             for field in fields(self):
                 if (exclude_fields is not None) and (field.name in exclude_fields):
                     continue
+
                 serialised_lines: list[str] = ['']
                 if not field.default == MISSING:
                     serialised_lines = self._toml_serialise_value(
                         value = field.default
                     ).splitlines()
+
                 toml_open.write(f"# {field.name} = {serialised_lines[0]}\n")
                 for line in serialised_lines[1:]:
                     toml_open.write(f"# {line}\n")
 
     def _needs_triple_quotes(self, s: str) -> bool:
-        special_chars = ['\n', '\r', '"', "'"]
+        """
+        Determine whether a string needs triple quotes.
+
+        This function determines whether or not a string requires triple
+        quotes for a TOML file.
+
+        Args:
+            s (str): String to check.
+
+        Returns:
+            bool: Whether the string contains the listed special 
+                characters.
+        """
+        special_chars: list[str] = ['\n', '\r', '"', "'"]
 
         return any(c in s for c in special_chars)
 
     def _is_bare_key(self, s: str) -> bool:
-        return (re.fullmatch(r'[A-Za-z0-9_-]+', s) is not None)
+        """
+        Determine whether a given key string is bare for TOML file.
+
+        This function determines whether a key for a TOML file, passed as a
+        string, is a fullmatch with a regex representing allowed characters
+        in a TOML key. Returns True if key can be bare, otherwise returning
+        False.
+
+        Args:
+            s (str): Key to be checked.
+
+        Returns:
+            bool: Whether the string can be used as a bare key.
+        """
+        return re.fullmatch(r'[A-Za-z0-9_-]+', s) is not None
 
     def _toml_serialise_value(self, value: TomlValue) -> str:
-        if isinstance(value, bool):
-            return "true" if value else "false"
+        """
+        Serialise value for use in TOML file.
 
-        elif isinstance(value, Path):
-            return f'"{value}"'
-        
-        elif isinstance(value, (int, float)):
-            return str(value)
-        
-        elif isinstance(value, str):
+        This function converts values from attribute field defaults into
+        strings for writing to a TOML file, converting types to usable TOML
+        types in the process.
+
+        Args:
+            value (TomlValue): Value to serialise.
+
+        Returns:
+            str: Serialised value.
+        """
+        serialised: str = ''
+
+        if isinstance(value, bool):
+            serialised = "true" if value else "false"
+
+        if isinstance(value, Path):
+            serialised = f'"{value}"'
+
+        if isinstance(value, (int, float)):
+            serialised = str(value)
+
+        if isinstance(value, str):
             if self._needs_triple_quotes(value):
                 escaped: str = value.replace('"""', '\\"""')
-                return '"""\n' + textwrap.indent(escaped, '    ') + '\n"""'
-
+                serialised = '"""\n' + textwrap.indent(escaped, '    ') + '\n"""'
             else:
-                return f'"{value}"'
-            
-        else: # Must be ManifestZipStructure instance
+                serialised =  f'"{value}"'
+
+        # Must be ManifestZipStructure instance
+        if isinstance(value, ManifestZipStructure):
             if not value:
-                return "{ }"
-            
-            parts: list[str] = []
-            for attribute in fields(value):
-                bare_key: str = (attribute_name:=attribute.name)
-                if not self._is_bare_key(attribute_name):
-                    bare_key = f'"{attribute_name}"'
+                serialised = "{ }"
+            else:
+                parts: list[str] = []
+                for attribute in fields(value):
+                    bare_key: str = (attribute_name:=attribute.name)
+                    if not self._is_bare_key(attribute_name):
+                        bare_key = f'"{attribute_name}"'
 
-                parts.append(f'{bare_key} = {self._toml_serialise_value(getattr(value, attribute.name))}')
+                    parts.append(
+                        f'{bare_key} = '
+                        f'{self._toml_serialise_value(getattr(value, attribute.name))}'
+                    )
 
-            return "{ " + ", ".join(parts) + " }"
-        
+                serialised = "{ " + ", ".join(parts) + " }"
+
+        return serialised
+
+    # ==== Class Methods ====
+
+    @classmethod
+    def from_toml(cls, path: Path):
+        """
+        Generator for config instance object from TOML file at 'path'.
+
+        This function generates the 'sanity/settings' object for use 
+        across the project codebase. It returns a Sanity/Settings class 
+        instance with any attributes set in 'path' replacing the defaults 
+        of Sanity/Settings.
+
+        Args:
+            path (Path): Path to a configured TOML file.
+
+        Returns:
+            Sanity: The usable instance of Sanity.
+        """
+        data = toml.load(path)
+        return cls(**data)
+
 @dataclass(frozen=True)
 class Sanity(SettingsSanity):
     """
@@ -153,26 +250,6 @@ class Sanity(SettingsSanity):
     # ==== Remote Manifest Location Attributes ====
 
     expected_remote_lang_dir: str = '/common/destiny_content/sqlite/'
-
-    # ==== Class Methods ====
-
-    @classmethod
-    def from_toml(cls, path: Path):
-        """
-        Generator for config.sanity object from TOML file at 'path'.
-
-        This function generates the 'sanity' object for use across the
-        project codebase. It returns a Sanity class instance with any
-        attributes set in 'path' replacing the defaults of Sanity.
-
-        Args:
-            path (Path): Path to a configured TOML file.
-
-        Returns:
-            Sanity: The usable instance of Sanity.
-        """
-        data = toml.load(path)
-        return cls(**data)
 
     # ==== Methods ====
 
@@ -269,21 +346,34 @@ class Settings(SettingsSanity):
 
     @property
     def expected_mf_name_template(self) -> Template:
+        """
+        Converts _expected_mf_name_template_str to Template.
+
+        This function converts the configurable 
+        _expected_mf_name_template_str attribute to a Template object for
+        substitution with expected_mf_name_regex().
+
+        Returns:
+            Template: Template for expected manifest filename.
+        """
         return Template(self._expected_mf_name_template_str)
 
     @property
     def expected_mf_name_regex(self) -> str:
+        """
+        Substitutes template with configurable extension and start.
+
+        This function substitutes mf_extension and mf_starts_with into the
+        Template from expected_mf_name_template().
+
+        Returns:
+            str: Regular expression for expected manfifest filename 
+                structure.
+        """
         return self.expected_mf_name_template.substitute(
             starts_with=self.mf_starts_with,
             extension=self.mf_extension
         )
-
-    # ==== Class Methods ====
-
-    @classmethod
-    def from_toml(cls, path: Path):
-        data = toml.load(path)
-        return cls(**data)
 
 # ==== Instance Generation ====
 
