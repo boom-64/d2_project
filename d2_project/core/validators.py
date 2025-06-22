@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from string import Template
 from typing import TYPE_CHECKING
 
+# ==== Local Modules ====
+import d2_project.core.errors as d2_project_errors
+
 # ==== Type Checking ====
 
 if TYPE_CHECKING:
@@ -35,31 +38,6 @@ class FileNameStringPattern(StringPattern):
 
 # ==== Functions ====
 
-def str_starts_with(value: str, starts_with: str, *, strict: bool) -> None:
-    """Check whether or not a string starts with a certain string.
-
-    This function checks whether a string starts with a certain string,
-    raising a ValueError if 'strict=True' passed. Otherwise, the failure is
-    logged.
-
-    Args:
-        value (str): The string to check.
-        starts_with (str): The string to look for at the start of 'value'.
-        strict (bool): Determines result of failure.
-
-    Raises:
-        ValueError: If 'strict==True' and the check fails.
-
-    """
-    if not value.startswith(starts_with):
-        if strict:
-            raise ValueError(
-                f"String {value} does not begin with {starts_with} as "
-                f"expected.",
-            )
-        pass
-        # Log
-
 def expected_entry_count(
     *,
     entry_type: str,
@@ -88,18 +66,13 @@ def expected_entry_count(
         ValueError: If 'expected' is negative or does not match 'actual'.
 
     """
-    # Raise if expected is negative
-    if expected < 0:
-        raise ValueError(
-            f"Expected '{entry_type}' count = {expected}: cannot have "
-            f"negative number of '{entry_type}'s in archive.",
-        )
-
-    # Raise if 'actual' != 'expected'
-    if actual != expected:
-        raise ValueError(
-            f"Unexpected '{entry_type}' count in '{entry_source}': "
-            f"expected {expected}, found {actual}.",
+    # Raise if expected is negative or actual != expected
+    if expected < 0 or actual != expected:
+        raise d2_project_errors.UnxpectedCountError(
+            entry_type=entry_type,
+            expected=expected,
+            actual=actual,
+            entry_source=entry_source,
         )
 
 def str_matches_pattern(*, value: str, stringpattern: StringPattern) -> None:
