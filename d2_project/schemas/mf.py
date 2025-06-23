@@ -5,7 +5,6 @@ from __future__ import annotations
 # ==== Standard Libraries ====
 from dataclasses import dataclass, field
 from json import JSONDecodeError
-from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
@@ -23,21 +22,33 @@ if TYPE_CHECKING:
 
     from requests.models import Response
 
-# ==== Classes ====
+# ==== Local Variables ====
+_bungie_response_data_attrs_conversion = {
+    "error_code": "ErrorCode",
+    "throttle_seconds": "ThrottleSeconds",
+    "error_status": "ErrorStatus",
+    "message": "Message",
+    "message_data": "MessageData",
+    "response": "Response",
+}
+
+# ==== Classes ===
 
 
 @dataclass(frozen=True, init=False)
 class BungieResponseData:
-    _attrs_conversion = MappingProxyType(
-        {
-            "error_code": "ErrorCode",
-            "throttle_seconds": "ThrottleSeconds",
-            "error_status": "ErrorStatus",
-            "message": "Message",
-            "message_data": "MessageData",
-            "response": "Response",
-        },
-    )
+    """Custom class for response from Bungie.
+
+    Attributes:
+        _attrs_conversion ()
+        error_code (int): Error code supplied by Bungie.
+        throttle_seconds (int): Rate-limiting info.
+        error_status (str): Error status supplied by Bungie.
+        message (str): Error message received from Bungie.
+        message_data (str): Message data from Bungie.
+        response (dict[str, any]): Response data.
+
+    """
 
     error_code: int = field(init=False)
     throttle_seconds: int = field(init=False)
@@ -65,10 +76,13 @@ class BungieResponseData:
         try:
             json_data = raw_data.json()
             attrs = {
-                k: json_data[v] for k, v in self._attrs_conversion.items()
+                k: json_data[v]
+                for k, v in (_bungie_response_data_attrs_conversion.items())
             }
 
-            if diff := set(json_data) - set(self._attrs_conversion.values()):
+            if diff := set(json_data) - set(
+                _bungie_response_data_attrs_conversion.values(),
+            ):
                 raise ValueError(
                     "Unexpected components in response: "
                     + ", ".join(f"{k}={json_data[k]!r}" for k in diff),
@@ -141,6 +155,16 @@ class BungieResponseData:
 
 @dataclass(frozen=True, init=False)
 class ManifestLocationData(BungieResponseData):
+    """Class for data pertaining to the latest manifest's location.
+
+    Attributes:
+        mf_remote_path (str): Remote path to manifest.
+        mf_url (str): URL to manifest.
+        mf_name (str): Filename of manifest.
+        lang (str): Language of manifest.
+
+    """
+
     mf_remote_path: str = field(init=False)
     mf_url: str = field(init=False)
     mf_name: str = field(init=False)

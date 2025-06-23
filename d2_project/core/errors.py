@@ -356,3 +356,20 @@ class PatternMismatchError(ValueError):
         )
         super().__init__(message)
         self.message: str = message
+
+
+class InvalidURLError(ValueError):
+    """Custom exception for invalid URL arguments passed.
+
+    Attributes:
+        url (str): Invalid URL.
+        message (str): Message passed to ValueError.
+
+    """
+
+    def __init__(self, url: str) -> None:
+        """Initialise class."""
+        self.url: str = url
+        message: str = f"Passed URL '{url}' is an invalid URL."
+        super().__init__(message)
+        self.message: str = message
