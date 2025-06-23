@@ -1,3 +1,4 @@
+"""Utilities pertaining to manifest installation."""
 from __future__ import annotations
 
 # ==== Standard Libraries ====
@@ -50,9 +51,9 @@ def request_bungie(
     response = requests.get(url, headers=headers, timeout=(3, 5))
 
     if not response.ok:
-        raise ConnectionError(
-            f"Request to Bungie failed with status {response.status_code}: "
-            f"{response.reason}",
+        raise d2_project_errors.BungieConnectionError(
+            status_code=response.status_code,
+            reason=response.reason,
         )
 
     return response
@@ -60,6 +61,7 @@ def request_bungie(
 def dl_bungie_content(
     *,
     file: IO[bytes],
+    file_path: Path,
     url: str,
     stream: bool = True,
 ) -> bool:
@@ -73,6 +75,7 @@ def dl_bungie_content(
 
     Args:
         file (IO[bytes]): The (open) file to write the content to.
+        file_path (Path): Path to file.
         url (str): The URL to query for the content.
         stream (bool): Whether or not to stream the file (defaults to True).
 
@@ -97,8 +100,6 @@ def dl_bungie_content(
             else:
                 file.write(response.content)
 
-        return True
-
     except requests.RequestException as e:
         raise d2_project_errors.DownloadError(
             url=url,
@@ -107,7 +108,13 @@ def dl_bungie_content(
         ) from e
 
     except OSError as e:
-        raise OSError(f"Error writing file {file.name}: {e}") from e
+        raise d2_project_errors.FileWriteError(
+            file=file_path,
+            original_exception=e,
+        ) from e
+
+    else:
+        return True
 
 def dl_and_extract_mf_zip(
     *,
@@ -116,12 +123,23 @@ def dl_and_extract_mf_zip(
     mf_zip_structure: dict[str, int],
     overwrite: bool = False,
 ) -> None:
+    """Download and extract archive containing manifest files.
+
+    Args:
+        url (str): URL to manifest archive.
+        mf_dir_path (Path): Directory to install manifest to.
+        mf_zip_structure (dict[str, int]): Expected structure of archive.
+        overwrite (bool, optional): Whether to overwrite existing manifests
+            (defaults to False).
+
+    """
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         tmp_path = Path(tmp.name)
 
         dl_bungie_content(
             url=url,
             file=tmp,
+            file_path=tmp_path,
             stream=True,
         )
 

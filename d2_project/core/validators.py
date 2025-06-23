@@ -1,9 +1,9 @@
+"""Custom validators for use across codebase."""
 from __future__ import annotations
 
 # ==== Standard Libraries ====
 import re
 from dataclasses import dataclass
-from string import Template
 from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
@@ -17,25 +17,27 @@ if TYPE_CHECKING:
 # ==== String Patterns ====
 
 @dataclass
-class StringPattern:
+class _ComparePattern:
+    """Class for comparing patterns.
+
+    Attributes:
+        pattern (str): Pattern to compare.
+        pattern_for (str): Short description of pattern purpose.
+
+    """
+
     pattern: str
-    errormsg: Template | None = None
+    pattern_for: str
 
-lc_checksum_stringpattern = StringPattern(
+lc_checksum_pattern: _ComparePattern = _ComparePattern(
     pattern=r"^[a-f0-9]{32}$",
-    errormsg=Template("Value '$value not a valid checksum."),
+    pattern_for="(lowercase) checksum",
 )
 
-file_suffix_stringpattern: StringPattern = StringPattern(
-    pattern = r"\.[A-Za-z0-9._-]+",
-    errormsg=Template("New suffix '$value' not a compatible suffix."),
+file_suffix_pattern: _ComparePattern = _ComparePattern(
+    pattern=r"\.[A-Za-z0-9._-]+",
+    pattern_for="file suffix",
 )
-
-class FileNameStringPattern(StringPattern):
-    errormsg = Template(
-        "File '$value' does not match expected file name pattern: '$pattern$.",
-    )
-
 # ==== Functions ====
 
 def expected_entry_count(
@@ -75,15 +77,23 @@ def expected_entry_count(
             entry_source=entry_source,
         )
 
-def str_matches_pattern(*, value: str, stringpattern: StringPattern) -> None:
-    if not re.fullmatch(stringpattern.pattern, value):
-        raise ValueError(
-            stringpattern.errormsg or Template(
-                "Value '$value' does not match expected pattern: '$pattern'.",
-            ).safe_substitute(
-                value=value,
-                pattern=stringpattern.pattern,
-            ),
+def str_matches_pattern(*, value: str, pattern: str, pattern_for: str) -> None:
+    """Validate string-pattern match.
+
+    Args:
+        value (str): Value to check.
+        pattern (str): Pattern to check against.
+        pattern_for (str): Short description of pattern purpose.
+
+    Raises:
+        d2_project_errors.PatternMismatchError: If pattern match fails.
+
+    """
+    if not re.fullmatch(pattern, value):
+        raise d2_project_errors.PatternMismatchError(
+            value=value,
+            pattern=pattern,
+            pattern_for=pattern_for,
         )
 
 def entry_is_file(path: Path) -> None:
@@ -97,4 +107,4 @@ def entry_is_file(path: Path) -> None:
 
     """
     if not path.is_file():
-        raise ValueError(f"Passed 'path={path}' must refer to file.")
+        raise d2_project_errors.IsNotFileError(path)

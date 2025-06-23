@@ -1,6 +1,4 @@
-"""
-core/utils/general.py
-"""
+"""General utilities."""
 
 # ==== Import Annotations from __future__
 
@@ -15,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
+import d2_project.core.errors as d2_project_errors
 import d2_project.core.validators as d2_project_validators
 
 # ==== Type Checking ==========================================================
@@ -64,23 +63,22 @@ def mv_item(
     src = src.resolve()
     dst = dst.resolve()
 
-    if not src.exists():
-        raise FileNotFoundError(f"Entry to be moved '{src}' does not exist.")
-
     # Validate entry type compatibility and assign 'target_path'
     target_path: Path = dst
     if dst.is_dir():
         target_path = dst / src.name
     elif src.is_dir():
-        raise IsADirectoryError(
-            f"Cannot move directory '{src}' to file path '{dst}'.",
+        raise d2_project_errors.DirToFileError(
+            src_dir=src,
+            dst_file=dst,
         )
 
     # Check and clear 'target_path' if 'overwrite==True', else raise
     if target_path.exists():
         if not overwrite:
-            raise FileExistsError(
-                f"An item '{target_path}' already exists.",
+            raise d2_project_errors.DestinationExistsError(
+                src=src,
+                dst=target_path,
             )
         if target_path.is_dir():
             shutil.rmtree(target_path)
@@ -129,10 +127,7 @@ def extract_zip(
 
     # Raise if 'extract_to' exists AND isn't a directory
     if extract_to.exists() and not extract_to.is_dir():
-        raise NotADirectoryError(
-            f"Must extract to a directory; {extract_to} is not a directory.",
-        )
-
+        raise d2_project_errors.ExtractionTargetNotADirectoryError(extract_to)
     # Create 'extract_to' directory, if none exists
     extract_to.mkdir(parents=True, exist_ok=True)
 
@@ -203,10 +198,7 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
     try:
         sample_file = next(iter(keep))
     except StopIteration as e:
-        raise ValueError(
-            "Passed files_to_keep empty: must include a non-zero exception "
-            "file count",
-        ) from e
+        raise d2_project_errors.NoFilesToKeepError from e
 
     directory = sample_file.parent
 
@@ -214,10 +206,9 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
     for f in keep:
         d2_project_validators.entry_is_file(f)
         if f.parent != directory:
-            raise ValueError(
-                f"Passed file-to-keep '{f}' not in same directory as other "
-                f"passed file '{sample_file}' - all passed files must be "
-                f"siblings.",
+            raise d2_project_errors.NonSiblingsError(
+                sample_file=sample_file,
+                checked_file=f,
             )
 
     # Unlink non-'files_to_keep' paths
@@ -226,9 +217,10 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
             try:
                 item.unlink()
             except OSError as e:
-                raise OSError(
-                    f"Failed to delete item '{item.name}' from '{directory}': "
-                    f"{e}",
+                raise d2_project_errors.FileDeleteFailedError(
+                    item_name=item.name,
+                    directory=directory,
+                    original_exception=e,
                 ) from e
 
 def rm_file(file: Path) -> None:
@@ -261,7 +253,8 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
     d2_project_validators.entry_is_file(path)
     d2_project_validators.str_matches_pattern(
         value=suffix,
-        stringpattern=d2_project_validators.file_suffix_stringpattern,
+        pattern=d2_project_validators.file_suffix_pattern.pattern,
+        pattern_for=d2_project_validators.file_suffix_pattern.pattern_for,
     )
 
     new_path: Path = path.with_name(path.name + suffix)
@@ -292,7 +285,7 @@ def rm_final_suffix(*, path: Path, overwrite: bool = False) -> Path:
     d2_project_validators.entry_is_file(path)
 
     if not path.suffix:
-        raise ValueError(f"File '{path}' has no suffix to be removed.")
+        raise d2_project_errors.NoSuffixError(path)
 
     new_path: Path = path.with_suffix("")
 
@@ -325,7 +318,7 @@ def _update_filename(
 
     """
     if new_path.exists() and not overwrite:
-        raise FileExistsError(f"File with path '{new_path}' already exists.")
+        raise d2_project_errors.FileExistsAtPathError(new_path.resolve())
 
     old_path.replace(new_path)
 

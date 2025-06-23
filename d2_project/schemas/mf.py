@@ -252,9 +252,8 @@ class InstalledManifestData:
         if self.path:
             d2_project_validators.str_matches_pattern(
                 value=self.name,
-                stringpattern=d2_project_validators.FileNameStringPattern(
-                    pattern=d2_project_config.settings.expected_mf_name_regex,
-                ),
+                pattern=d2_project_config.settings.expected_mf_name_regex,
+                pattern_for="(expected) manifest name",
             )
 
             object.__setattr__(self, "is_pattern_expected", True)
@@ -279,7 +278,8 @@ class InstalledManifestData:
 
             d2_project_validators.str_matches_pattern(
                 value=expected_checksum_str,
-                stringpattern=d2_project_validators.lc_checksum_stringpattern,
+                pattern=d2_project_validators.lc_checksum_pattern.pattern,
+                pattern_for=d2_project_validators.lc_checksum_pattern.pattern_for,
             )
 
             expected_checksum = general_schemas.MD5Checksum(
