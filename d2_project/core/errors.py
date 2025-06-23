@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
+
 # ==== Classes ====
 class DownloadError(ConnectionError):
     """Custom exception for exceptions which occur during a download.
@@ -45,6 +46,7 @@ class DownloadError(ConnectionError):
 
         super().__init__(message)
 
+
 class ManifestRemotePathError(ValueError):
     """Custom exception for unexpected manifest remote paths.
 
@@ -63,6 +65,7 @@ class ManifestRemotePathError(ValueError):
         )
         super().__init__(message)
         self.message: str = message
+
 
 class UnxpectedCountError(ValueError):
     """Custom exception for unexpected file/dir counts.
@@ -105,6 +108,7 @@ class UnxpectedCountError(ValueError):
         super().__init__(message)
         self.message: str = message
 
+
 class DirToFileError(IsADirectoryError):
     """Custom exception for when a dir is moved to a path where a file exists.
 
@@ -124,6 +128,7 @@ class DirToFileError(IsADirectoryError):
         )
         super().__init__(message)
         self.message: str = message
+
 
 class DestinationExistsError(FileExistsError):
     """Custom exception to avoid file overwrites.
@@ -145,6 +150,7 @@ class DestinationExistsError(FileExistsError):
         )
         super().__init__(message)
         self.message: str = message
+
 
 class NonSiblingsError(ValueError):
     """Custom exception for when files aren't siblings.
@@ -168,6 +174,7 @@ class NonSiblingsError(ValueError):
         super().__init__(message)
         self.message: str = message
 
+
 class NoSuffixError(ValueError):
     """Custom exception for when no removable suffix found.
 
@@ -180,11 +187,10 @@ class NoSuffixError(ValueError):
     def __init__(self, file: Path) -> None:
         """Initialise class."""
         self.file: Path = file
-        message: str = (
-            f"File {file} has no suffix to be removed."
-        )
+        message: str = f"File {file} has no suffix to be removed."
         super().__init__(message)
         self.message: str = message
+
 
 class BungieConnectionError(ConnectionError):
     """Custom exception for when Bungie connection fails.
@@ -205,6 +211,7 @@ class BungieConnectionError(ConnectionError):
         super().__init__(message)
         self.message: str = message
 
+
 class ExtractionTargetNotADirectoryError(NotADirectoryError):
     """Custom exception for when extracting to non-directory path.
 
@@ -223,6 +230,7 @@ class ExtractionTargetNotADirectoryError(NotADirectoryError):
         super().__init__(message)
         self.message: str = message
 
+
 class NoFilesToKeepError(ValueError):
     """Custom exception for rm_sibling_files().
 
@@ -240,6 +248,7 @@ class NoFilesToKeepError(ValueError):
         super().__init__(message)
         self.message: str = message
 
+
 class FileExistsAtPathError(FileExistsError):
     """Custom exception for avoiding file overwrites.
 
@@ -252,11 +261,10 @@ class FileExistsAtPathError(FileExistsError):
     def __init__(self, path: Path) -> None:
         """Initialise class."""
         self.path: Path = path
-        message: str = (
-            f"File with path '{path}' already exists."
-        )
+        message: str = f"File with path '{path}' already exists."
         super().__init__(message)
         self.message: str = message
+
 
 class FileDeleteFailedError(OSError):
     """Custom exception for when file deletion fails.
@@ -287,6 +295,7 @@ class FileDeleteFailedError(OSError):
         super().__init__(message)
         self.message: str = message
 
+
 class FileWriteError(OSError):
     """Custom exception for when files fail to write.
 
@@ -307,6 +316,7 @@ class FileWriteError(OSError):
         super().__init__(message)
         self.message: str = message
 
+
 class IsNotFileError(ValueError):
     """Custom exception for when path needs to refer to file.
 
@@ -319,11 +329,10 @@ class IsNotFileError(ValueError):
     def __init__(self, path: Path) -> None:
         """Initialise class."""
         self.path: Path = path
-        message: str = (
-            f"Passed path '{path}' must refer to file."
-        )
+        message: str = f"Passed path '{path}' must refer to file."
         super().__init__(message)
         self.message: str = message
+
 
 class PatternMismatchError(ValueError):
     """Custom exception for string pattern mismatch.

@@ -32,6 +32,7 @@ logging.basicConfig(
 
 # ==== Functions ====
 
+
 def mv_item(
     *,
     src: Path,
@@ -86,6 +87,7 @@ def mv_item(
             target_path.unlink()
 
     shutil.move(str(src), str(target_path))
+
 
 def extract_zip(
     *,
@@ -144,7 +146,7 @@ def extract_zip(
                 # Validate expected counts of files and/or dirs\
                 expected_counts: list[
                     tuple[str, int | None, Callable[[ZipInfo], bool]]
-                    ] = [
+                ] = [
                     ("file", expected_file_count, lambda e: not e.is_dir()),
                     ("dir", expected_dir_count, lambda e: e.is_dir()),
                 ]
@@ -170,6 +172,7 @@ def extract_zip(
                 dst=extract_to,
                 overwrite=overwrite,
             )
+
 
 def rm_sibling_files(files_to_keep: set[Path]) -> None:
     """Remove sibling files.
@@ -223,6 +226,7 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
                     original_exception=e,
                 ) from e
 
+
 def rm_file(file: Path) -> None:
     """Safely unlink file by validating with is_file() first.
 
@@ -233,6 +237,7 @@ def rm_file(file: Path) -> None:
     d2_project_validators.entry_is_file(file)
 
     file.unlink()
+
 
 def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
     """Append a suffix to the filename of the given file path.
@@ -265,6 +270,7 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
         overwrite=overwrite,
     )
 
+
 def rm_final_suffix(*, path: Path, overwrite: bool = False) -> Path:
     """Remove the final suffix (file extension) from the given file path.
 
@@ -294,6 +300,7 @@ def rm_final_suffix(*, path: Path, overwrite: bool = False) -> Path:
         new_path=new_path,
         overwrite=overwrite,
     )
+
 
 def _update_filename(
     *,

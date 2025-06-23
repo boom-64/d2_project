@@ -1,4 +1,5 @@
 """Utilities pertaining to manifest installation."""
+
 from __future__ import annotations
 
 # ==== Standard Libraries ====
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
     from requests.models import Response
 
 # ==== Functions ====
+
 
 def request_bungie(
     url: str,
@@ -57,6 +59,7 @@ def request_bungie(
         )
 
     return response
+
 
 def dl_bungie_content(
     *,
@@ -115,6 +118,7 @@ def dl_bungie_content(
 
     else:
         return True
+
 
 def dl_and_extract_mf_zip(
     *,

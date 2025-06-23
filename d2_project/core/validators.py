@@ -1,4 +1,5 @@
 """Custom validators for use across codebase."""
+
 from __future__ import annotations
 
 # ==== Standard Libraries ====
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 
 # ==== String Patterns ====
 
+
 @dataclass
 class _ComparePattern:
     """Class for comparing patterns.
@@ -29,6 +31,7 @@ class _ComparePattern:
     pattern: str
     pattern_for: str
 
+
 lc_checksum_pattern: _ComparePattern = _ComparePattern(
     pattern=r"^[a-f0-9]{32}$",
     pattern_for="(lowercase) checksum",
@@ -39,6 +42,7 @@ file_suffix_pattern: _ComparePattern = _ComparePattern(
     pattern_for="file suffix",
 )
 # ==== Functions ====
+
 
 def expected_entry_count(
     *,
@@ -77,6 +81,7 @@ def expected_entry_count(
             entry_source=entry_source,
         )
 
+
 def str_matches_pattern(*, value: str, pattern: str, pattern_for: str) -> None:
     """Validate string-pattern match.
 
@@ -95,6 +100,7 @@ def str_matches_pattern(*, value: str, pattern: str, pattern_for: str) -> None:
             pattern=pattern,
             pattern_for=pattern_for,
         )
+
 
 def entry_is_file(path: Path) -> None:
     """Validate that the given path refers to an existing file.
