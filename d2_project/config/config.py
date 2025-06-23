@@ -28,6 +28,7 @@ import d2_project.core.errors as d2_project_errors
 # ==== Dataclasses Needed For TypeAliases ====
 # Cannot use TypeAliases from below here.
 
+
 @dataclass(frozen=True)
 class ManifestZipStructure:
     """Dataclass for manifest zip structure.
@@ -51,15 +52,15 @@ class ManifestZipStructure:
         """
         return {f.name: getattr(self, f.name) for f in fields(self)}
 
+
 _manifest_zip_structure = ManifestZipStructure(
-        expected_dir_count=0,
-        expected_file_count=1,
-    )
+    expected_dir_count=0,
+    expected_file_count=1,
+)
 
 # ==== Type Checking ====
 
 if TYPE_CHECKING:
-
     # ==== Standard Library Imports ====
 
     from typing import Self, TypeAlias
@@ -67,13 +68,9 @@ if TYPE_CHECKING:
     # ==== Custom TypeAlias Import ====
 
     TomlValue: TypeAlias = (
-        bool
-        | Path
-        | int
-        | float
-        | str
-        | ManifestZipStructure
+        bool | Path | int | float | str | ManifestZipStructure
     )
+
 
 @dataclass(frozen=True)
 class SettingsSanity:
@@ -112,7 +109,7 @@ class SettingsSanity:
                 serialised_lines: list[str] = [""]
                 if field.default != MISSING:
                     serialised_lines = self._toml_serialise_value(
-                        value = field.default,
+                        value=field.default,
                     ).splitlines()
 
                 toml_open.write(f"# {field.name} = {serialised_lines[0]}\n")
@@ -187,7 +184,7 @@ class SettingsSanity:
                     '"""\n' + textwrap.indent(escaped, "    ") + '\n"""'
                 )
             else:
-                serialised =  f'"{value}"'
+                serialised = f'"{value}"'
 
         # Must be ManifestZipStructure instance
         if isinstance(value, ManifestZipStructure):
@@ -196,16 +193,14 @@ class SettingsSanity:
             else:
                 parts: list[str] = []
                 for attribute in fields(value):
-                    key: str = (attribute_name:=attribute.name)
+                    key: str = (attribute_name := attribute.name)
                     if not self._is_bare_key(attribute_name):
                         key = f'"{attribute_name}"'
-                    serialised_value_str: str = (
-                        self._toml_serialise_value(
-                            getattr(
-                                value,
-                                attribute.name,
-                            ),
-                        )
+                    serialised_value_str: str = self._toml_serialise_value(
+                        getattr(
+                            value,
+                            attribute.name,
+                        ),
                     )
                     parts.append(
                         f"{key} = {serialised_value_str}",
@@ -235,6 +230,7 @@ class SettingsSanity:
         """
         data = toml.load(path)
         return cls(**data)
+
 
 @dataclass(frozen=True)
 class Sanity(SettingsSanity):
@@ -306,6 +302,7 @@ class Sanity(SettingsSanity):
     def disable_strict(self) -> None:
         """Set Sanity instance attribute 'strict' to False."""
         object.__setattr__(self, "strict", False)
+
 
 @dataclass(frozen=True)
 class Settings(SettingsSanity):
@@ -404,6 +401,7 @@ class Settings(SettingsSanity):
             starts_with=self.mf_starts_with,
             extension=self.mf_extension,
         )
+
 
 # ==== Instance Generation ====
 

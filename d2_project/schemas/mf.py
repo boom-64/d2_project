@@ -1,3 +1,5 @@
+"""Schemas pertaining to manifest objects."""
+
 from __future__ import annotations
 
 # ==== Standard Libraries ====
@@ -23,16 +25,19 @@ if TYPE_CHECKING:
 
 # ==== Classes ====
 
+
 @dataclass(frozen=True, init=False)
 class BungieResponseData:
-    _attrs_conversion = MappingProxyType({
-        "error_code": "ErrorCode",
-        "throttle_seconds": "ThrottleSeconds",
-        "error_status": "ErrorStatus",
-        "message": "Message",
-        "message_data": "MessageData",
-        "response": "Response",
-    })
+    _attrs_conversion = MappingProxyType(
+        {
+            "error_code": "ErrorCode",
+            "throttle_seconds": "ThrottleSeconds",
+            "error_status": "ErrorStatus",
+            "message": "Message",
+            "message_data": "MessageData",
+            "response": "Response",
+        },
+    )
 
     error_code: int = field(init=False)
     throttle_seconds: int = field(init=False)
@@ -63,10 +68,10 @@ class BungieResponseData:
                 k: json_data[v] for k, v in self._attrs_conversion.items()
             }
 
-            if (diff := set(json_data) - set(self._attrs_conversion.values())):
+            if diff := set(json_data) - set(self._attrs_conversion.values()):
                 raise ValueError(
-                    "Unexpected components in response: " +
-                    ", ".join(f"{k}={json_data[k]!r}" for k in diff),
+                    "Unexpected components in response: "
+                    + ", ".join(f"{k}={json_data[k]!r}" for k in diff),
                 )
 
         except JSONDecodeError as e:
@@ -87,7 +92,7 @@ class BungieResponseData:
     # ==== Error Handling ====
 
     def _handle_error_code(self) -> None:
-        """Validate the error_code to determine if the response indicates success.
+        """Determine if the response indicates success from error_code.
 
         Raises:
             PermissionError: If the error code indicates an API key issue.
@@ -98,7 +103,7 @@ class BungieResponseData:
             if self.error_code in (2101, 2102):
                 raise PermissionError(
                     f"Issue with the API key. Error code: {self.error_code}, "
-                    f"error message: '{self.message}'."
+                    f"error message: '{self.message}'.",
                 )
             raise self.APIError(
                 msg="Unexpected Bungie API error.",
@@ -112,6 +117,13 @@ class BungieResponseData:
 
         This exception is intended to represent non-permission-related
         errors in Bungie's API response.
+
+        Attributes:
+            msg (str): Description of the error.
+            response_data (core.schemas.BungieResponseData | None,
+                optional): The BungieResponseData instance related to this
+                error.
+
         """
 
         def __init__(
@@ -120,19 +132,12 @@ class BungieResponseData:
             msg: str,
             response_data: BungieResponseData | None = None,
         ) -> None:
-            """Initializes the APIError exception.
-
-            Args:
-                msg (str): Description of the error.
-                response_data (core.schemas.BungieResponseData | None,
-                optional): The BungieResponseData instance related to this
-                    error.
-
-            """
+            """Initialise the APIError exception."""
             if response_data:
                 msg = f"{msg.rstrip()} Response data: '{response_data}'."
 
             super().__init__(msg)
+
 
 @dataclass(frozen=True, init=False)
 class ManifestLocationData(BungieResponseData):
@@ -143,7 +148,8 @@ class ManifestLocationData(BungieResponseData):
 
     # ==== Initialisation ====
 
-    def __init__(self, raw_data: Response):
+    def __init__(self, raw_data: Response) -> None:
+        """Initialise class."""
         super().__init__(raw_data)
         self._validate_response_structure()
         self._set_lang()
@@ -154,27 +160,27 @@ class ManifestLocationData(BungieResponseData):
         self._extract_mf_name()
         self._construct_mf_url()
 
-    def _set_lang(self):
+    def _set_lang(self) -> None:
         object.__setattr__(self, "lang", d2_project_config.settings.mf_lang)
 
-    def _validate_response_structure(self):
+    def _validate_response_structure(self) -> None:
         pass
 
-    def _extract_mf_path(self):
+    def _extract_mf_path(self) -> None:
         object.__setattr__(
             self,
             "mf_remote_path",
             self.response["mobileWorldContentPaths"][self.lang],
         )
 
-    def _extract_mf_name(self):
+    def _extract_mf_name(self) -> None:
         object.__setattr__(
             self,
             "mf_name",
             self.mf_remote_path.split("/")[-1],
         )
 
-    def _construct_mf_url(self):
+    def _construct_mf_url(self) -> None:
         object.__setattr__(
             self,
             "mf_url",
@@ -183,6 +189,7 @@ class ManifestLocationData(BungieResponseData):
                 path=self.mf_remote_path,
             ),
         )
+
 
 @dataclass(init=False)
 class InstalledManifestData:
@@ -197,6 +204,7 @@ class InstalledManifestData:
     # ==== Initialisation ====
 
     def __init__(self) -> None:
+        """Initialise class."""
         self._find_and_set_path()
         self._extract_and_set_name()
         self._determine_pattern_expected()
@@ -216,9 +224,7 @@ class InstalledManifestData:
         mf_candidates: list[Path] = []
         for entry in d2_project_config.settings.mf_dir_path.iterdir():
             if (
-                entry.suffix == (
-                    d2_project_config.settings.mf_extension
-                )
+                entry.suffix == (d2_project_config.settings.mf_extension)
                 and entry.is_file()
             ):
                 mf_candidates.append(entry)
@@ -237,7 +243,7 @@ class InstalledManifestData:
             object.__setattr__(self, "path", None)
             return
 
-        # len(mf_candidates) == 1
+        # Must have len(mf_candidates) == 1
         object.__setattr__(self, "path", mf_candidates[0])
 
     def _extract_and_set_name(self) -> None:
@@ -258,13 +264,13 @@ class InstalledManifestData:
 
             object.__setattr__(self, "is_pattern_expected", True)
 
-    def _extract_and_set_extension(self):
+    def _extract_and_set_extension(self) -> None:
         extension: str | None = None
         if self.is_pattern_expected:
             extension = self.path.suffix
         object.__setattr__(self, "extension", extension)
 
-    def _extract_and_set_expected_checksum(self):
+    def _extract_and_set_expected_checksum(self) -> None:
         expected_checksum: general_schemas.MD5Checksum | None = None
         expected_checksum_str: str
 
@@ -288,19 +294,20 @@ class InstalledManifestData:
 
         object.__setattr__(self, "expected_checksum", expected_checksum)
 
-    def _compute_and_set_computed_checksum(self):
+    def _compute_and_set_computed_checksum(self) -> None:
         computed_checksum: general_schemas.MD5Checksum | None = None
         if self.path:
-            computed_checksum = (
-                general_schemas.MD5Checksum.calc(self.path)
-            )
+            computed_checksum = general_schemas.MD5Checksum.calc(self.path)
         object.__setattr__(self, "computed_checksum", computed_checksum)
 
-    def _compute_and_set_checksum_match(self):
+    def _compute_and_set_checksum_match(self) -> None:
         checksum_match: bool = False
-        if self.expected_checksum and self.computed_checksum:
-            if self.computed_checksum == self.expected_checksum:
-                checksum_match = True
+        if (
+            self.expected_checksum
+            and self.computed_checksum
+            and self.computed_checksum == self.expected_checksum
+        ):
+            checksum_match = True
         object.__setattr__(self, "checksum_match", checksum_match)
 
     # ==== Global Methods ====
@@ -311,11 +318,15 @@ class InstalledManifestData:
         *,
         force_update: bool = False,
     ) -> InstalledManifestData:
-        bak_path: Path | None = general_utils.append_suffix(
+        bak_path: Path | None = (
+            general_utils.append_suffix(
                 path=self.path,
                 suffix=d2_project_config.settings.mf_bak_ext,
                 overwrite=force_update,
-            ) if self.path else None
+            )
+            if self.path
+            else None
+        )
 
         try:
             mf_utils.dl_and_extract_mf_zip(
@@ -326,7 +337,9 @@ class InstalledManifestData:
                 mf_dir_path=d2_project_config.settings.mf_dir_path,
                 mf_zip_structure=d2_project_config.settings.mf_zip_structure.to_dict(),
             )
-            files_to_keep: set[Path] = {(new_local_manifest := InstalledManifestData()).path}
+            files_to_keep: set[Path] = {
+                (new_local_manifest := InstalledManifestData()).path,
+            }
 
             if bak_path is not None:
                 files_to_keep.add(bak_path)
@@ -335,8 +348,6 @@ class InstalledManifestData:
                 files_to_keep=files_to_keep,
             )
 
-            return new_local_manifest
-
         except:
             if bak_path:
                 general_utils.rm_sibling_files({bak_path})
@@ -344,3 +355,6 @@ class InstalledManifestData:
                 general_utils.rm_final_suffix(path=bak_path)
 
             return self
+
+        else:
+            return new_local_manifest

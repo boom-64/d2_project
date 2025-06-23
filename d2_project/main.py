@@ -8,13 +8,11 @@ import d2_project.schemas.mf as mf_schemas
 
 # ==== Execution ====
 
-mf_loc_data: mf_schemas.ManifestLocationData = (
-    mf_schemas.ManifestLocationData(
-        mf_utils.request_bungie(
-            url=d2_project_config.settings.mf_finder_url,
-            key=d2_project_config.settings.api_key,
-        ),
-    )
+mf_loc_data: mf_schemas.ManifestLocationData = mf_schemas.ManifestLocationData(
+    mf_utils.request_bungie(
+        url=d2_project_config.settings.mf_finder_url,
+        key=d2_project_config.settings.api_key,
+    ),
 )
 
 installed_mf_data: mf_schemas.InstalledManifestData = (

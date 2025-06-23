@@ -1,3 +1,5 @@
+"""Schemas for general objects."""
+
 from __future__ import annotations
 
 # ==== Standard Libraries ====
@@ -20,6 +22,7 @@ if TYPE_CHECKING:
 
 # ==== Classes ====
 
+
 @dataclass(frozen=True)
 class MD5Checksum:
     val: str
@@ -33,7 +36,8 @@ class MD5Checksum:
         if not self.from_calc:
             d2_project_validators.str_matches_pattern(
                 value=lc_val,
-                stringpattern=d2_project_validators.lc_checksum_stringpattern,
+                pattern=d2_project_validators.lc_checksum_pattern.pattern,
+                pattern_for=d2_project_validators.lc_checksum_pattern.pattern_for,
             )
 
         object.__setattr__(self, "val", lc_val)
@@ -90,6 +94,7 @@ class MD5Checksum:
             expected: MD5Checksum,
             computed: MD5Checksum,
         ) -> None:
+            """Initialise class."""
             self.expected = expected
             self.computed = computed
 
@@ -97,6 +102,7 @@ class MD5Checksum:
                 f"Checksum mismatch: expected {self.expected.val}, got "
                 f"{self.computed.val}.",
             )
+
 
 @dataclass(frozen=True)
 class ParsedURL:
@@ -192,4 +198,3 @@ class ParsedURL:
             raise ValueError(f"Reconstructed URL '{computed_url}' is invalid.")
 
         return cls(url=computed_url, base_url=cleaned_base_url, path=full_path)
-
