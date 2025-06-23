@@ -4,11 +4,11 @@ from __future__ import annotations
 
 # ==== Standard Libraries ====
 from dataclasses import dataclass, field
-from json import JSONDecodeError
 from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
 import d2_project.config.config as d2_project_config
+import d2_project.core.errors as d2_project_errors
 import d2_project.core.utils.general as general_utils
 import d2_project.core.utils.mf as mf_utils
 import d2_project.core.validators as d2_project_validators
@@ -88,15 +88,8 @@ class BungieResponseData:
                     + ", ".join(f"{k}={json_data[k]!r}" for k in diff),
                 )
 
-        except JSONDecodeError as e:
-            raise ValueError(
-                f"Failed to parse json response: {e}",
-            ) from e
-
         except KeyError as e:
-            raise ValueError(
-                f"Missing required field in response: {e}.",
-            ) from e
+            raise d2_project_errors.MissingBungieResponseFieldError(e) from e
 
         for key, val in attrs.items():
             object.__setattr__(self, key, val)
@@ -115,42 +108,11 @@ class BungieResponseData:
         """
         if self.error_code != 1:
             if self.error_code in (2101, 2102):
-                raise PermissionError(
-                    f"Issue with the API key. Error code: {self.error_code}, "
-                    f"error message: '{self.message}'.",
+                raise d2_project_errors.APIPermissionError(
+                    error_code=self.error_code,
+                    error_message=self.message,
                 )
-            raise self.APIError(
-                msg="Unexpected Bungie API error.",
-                response_data=self,
-            )
-
-    # ==== Custom Exceptions ====
-
-    class APIError(Exception):
-        """Exception raised for errors returned by the Bungie API.
-
-        This exception is intended to represent non-permission-related
-        errors in Bungie's API response.
-
-        Attributes:
-            msg (str): Description of the error.
-            response_data (core.schemas.BungieResponseData | None,
-                optional): The BungieResponseData instance related to this
-                error.
-
-        """
-
-        def __init__(
-            self,
-            *,
-            msg: str,
-            response_data: BungieResponseData | None = None,
-        ) -> None:
-            """Initialise the APIError exception."""
-            if response_data:
-                msg = f"{msg.rstrip()} Response data: '{response_data}'."
-
-            super().__init__(msg)
+            raise d2_project_errors.UnknownAPIError(response_data=self)
 
 
 @dataclass(frozen=True, init=False)
@@ -215,29 +177,11 @@ class ManifestLocationData(BungieResponseData):
         )
 
 
-@dataclass(init=False)
+@dataclass
 class InstalledManifestData:
-    name: str = field(init=False)
-    path: Path = field(init=False)
-    is_pattern_expected: bool = False
-    extension: str = field(init=False)
-    computed_checksum: general_schemas.MD5Checksum = field(init=False)
-    expected_checksum: general_schemas.MD5Checksum = field(init=False)
-    checksum_match: bool = field(init=False)
-
-    # ==== Initialisation ====
-
-    def __init__(self) -> None:
-        """Initialise class."""
-        self._find_and_set_path()
-        self._extract_and_set_name()
-        self._determine_pattern_expected()
-        self._extract_and_set_extension()
-        self._extract_and_set_expected_checksum()
-        self._compute_and_set_computed_checksum()
-        self._compute_and_set_checksum_match()
-
-    def _find_and_set_path(self) -> None:
+    # ==== Properties ====
+    @property
+    def installed_mf_path(self) -> Path | None:
         if not (
             mf_dir_path := d2_project_config.settings.mf_dir_path
         ).is_dir():
@@ -264,47 +208,52 @@ class InstalledManifestData:
 
         # Returns None if no candidate found
         if not mf_candidates:
-            object.__setattr__(self, "path", None)
-            return
+            return None
 
         # Must have len(mf_candidates) == 1
-        object.__setattr__(self, "path", mf_candidates[0])
+        return mf_candidates[0]
 
-    def _extract_and_set_name(self) -> None:
+    @property
+    def installed_mf_name(self) -> str | None:
         name: str | None = None
 
-        if self.path:
-            name = self.path.name
+        if self.installed_mf_path:
+            name = self.installed_mf_path.name
 
-        object.__setattr__(self, "name", name)
+        return name
 
-    def _determine_pattern_expected(self) -> None:
-        if self.path:
-            d2_project_validators.str_matches_pattern(
-                value=self.name,
-                pattern=d2_project_config.settings.expected_mf_name_regex,
-                pattern_for="(expected) manifest name",
-            )
+    @property
+    def filename_pattern_expected(self) -> bool | None:
+        if self.installed_mf_path and self.installed_mf_name:
+            try:
+                return d2_project_validators.str_matches_pattern(
+                    value=self.installed_mf_name,
+                    pattern=d2_project_config.settings.expected_mf_name_regex,
+                    pattern_for="(expected) manifest name",
+                )
+            except d2_project_errors.PatternMismatchError:
+                return False
+        return None
 
-            object.__setattr__(self, "is_pattern_expected", True)
-
-    def _extract_and_set_extension(self) -> None:
+    @property
+    def installed_mf_extension(self) -> str | None:
         extension: str | None = None
-        if self.is_pattern_expected:
-            extension = self.path.suffix
-        object.__setattr__(self, "extension", extension)
+        if self.installed_mf_path and self.filename_pattern_expected:  # pyright: ignore[reportUnnecessaryComparison]
+            extension = self.installed_mf_path.suffix
+        return extension
 
-    def _extract_and_set_expected_checksum(self) -> None:
+    @property
+    def expected_checksum(self) -> general_schemas.MD5Checksum | None:
         expected_checksum: general_schemas.MD5Checksum | None = None
         expected_checksum_str: str
 
-        if self.is_pattern_expected:
-            expected_checksum_str = self.path.stem.split("_")[-1]
+        if self.installed_mf_path and self.filename_pattern_expected:  # pyright: ignore[reportUnnecessaryComparison]
+            expected_checksum_str = self.installed_mf_path.stem.split("_")[-1]
             expected_checksum = general_schemas.MD5Checksum(
                 expected_checksum_str,
             )
-        elif self.path:
-            expected_checksum_str = self.path.stem[-32:]
+        elif self.installed_mf_path:
+            expected_checksum_str = self.installed_mf_path.stem[-32:]
 
             d2_project_validators.str_matches_pattern(
                 value=expected_checksum_str,
@@ -316,23 +265,21 @@ class InstalledManifestData:
                 expected_checksum_str,
             )
 
-        object.__setattr__(self, "expected_checksum", expected_checksum)
+        return expected_checksum
 
-    def _compute_and_set_computed_checksum(self) -> None:
-        computed_checksum: general_schemas.MD5Checksum | None = None
-        if self.path:
-            computed_checksum = general_schemas.MD5Checksum.calc(self.path)
-        object.__setattr__(self, "computed_checksum", computed_checksum)
+    @property
+    def computed_checksum(self) -> general_schemas.MD5Checksum | None:
+        if self.installed_mf_path:
+            return general_schemas.MD5Checksum.calc(
+                self.installed_mf_path,
+            )
+        return None
 
-    def _compute_and_set_checksum_match(self) -> None:
-        checksum_match: bool = False
-        if (
-            self.expected_checksum
-            and self.computed_checksum
-            and self.computed_checksum == self.expected_checksum
-        ):
-            checksum_match = True
-        object.__setattr__(self, "checksum_match", checksum_match)
+    @property
+    def checksum_match(self) -> bool | None:
+        if self.expected_checksum and self.computed_checksum:
+            return self.computed_checksum == self.expected_checksum
+        return None
 
     # ==== Global Methods ====
 
@@ -344,11 +291,11 @@ class InstalledManifestData:
     ) -> InstalledManifestData:
         bak_path: Path | None = (
             general_utils.append_suffix(
-                path=self.path,
+                path=self.installed_mf_path,
                 suffix=d2_project_config.settings.mf_bak_ext,
                 overwrite=force_update,
             )
-            if self.path
+            if self.installed_mf_path
             else None
         )
 
@@ -361,9 +308,14 @@ class InstalledManifestData:
                 mf_dir_path=d2_project_config.settings.mf_dir_path,
                 mf_zip_structure=d2_project_config.settings.mf_zip_structure.to_dict(),
             )
-            files_to_keep: set[Path] = {
-                (new_local_manifest := InstalledManifestData()).path,
-            }
+            new_local_manifest: InstalledManifestData = InstalledManifestData()
+            files_to_keep: set[Path] = (
+                {
+                    new_local_manifest.installed_mf_path,
+                }
+                if new_local_manifest.installed_mf_path
+                else set()
+            )
 
             if bak_path is not None:
                 files_to_keep.add(bak_path)
@@ -378,7 +330,7 @@ class InstalledManifestData:
 
                 general_utils.rm_final_suffix(path=bak_path)
 
-            return self
+            raise
 
         else:
             return new_local_manifest

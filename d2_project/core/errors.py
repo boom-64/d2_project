@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
+    import d2_project.schemas.mf as mf_schemas
+
 
 # ==== Classes ====
 class DownloadError(ConnectionError):
@@ -371,5 +373,76 @@ class InvalidURLError(ValueError):
         """Initialise class."""
         self.url: str = url
         message: str = f"Passed URL '{url}' is an invalid URL."
+        super().__init__(message)
+        self.message: str = message
+
+
+class APIPermissionError(PermissionError):
+    """Custom exception for known API errors.
+
+    Attributes:
+        error_code (int): The error code returned by Bungie.
+        error_message (str): The message received from Bungie.
+        message (str): The message passed to PermissionError.
+
+    """
+
+    def __init__(self, *, error_code: int, error_message: str) -> None:
+        """Initialise class."""
+        self.error_code: int = error_code
+        self.error_message: str = error_message
+
+        message: str = (
+            f"Issue with the API key. Error code: {error_code}, error "
+            f"message: '{error_message}'."
+        )
+
+        super().__init__(message)
+
+        self.message: str = message
+
+
+class UnknownAPIError(Exception):
+    """Exception raised for errors returned by the Bungie API.
+
+    This exception is intended to represent non-permission-related
+    errors in Bungie's API response.
+
+    Attributes:
+        response_data (mf_schemas.BungieResponseData | None, optional): The
+            BungieResponseData instance related to thiscerror.
+        message (str): Message to pass to Exception.
+
+    """
+
+    def __init__(
+        self,
+        *,
+        response_data: mf_schemas.BungieResponseData | None = None,
+    ) -> None:
+        """Initialise the APIError exception."""
+        message: str = "Unknown Bungie API error."
+        if response_data:
+            message += f" Response data: '{response_data}'"
+
+        super().__init__(message)
+        self.message: str = message
+
+
+class MissingBungieResponseFieldError(ValueError):
+    """Custom exception for missing Bungie response fields.
+
+    Attributes:
+        original_key_error (Exception): Original KeyError raised.
+        message (str): Message raised to ValueError.
+
+    """
+
+    def __init__(self, original_key_error: KeyError) -> None:
+        """Initialise class."""
+        self.original_key_error: KeyError = original_key_error
+        message: str = (
+            f"Missing required field in response: {original_key_error}."
+        )
         super().__init__(message)
         self.message: str = message

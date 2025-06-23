@@ -82,7 +82,7 @@ def expected_entry_count(
         )
 
 
-def str_matches_pattern(*, value: str, pattern: str, pattern_for: str) -> None:
+def str_matches_pattern(*, value: str, pattern: str, pattern_for: str) -> bool:
     """Validate string-pattern match.
 
     Args:
@@ -94,12 +94,14 @@ def str_matches_pattern(*, value: str, pattern: str, pattern_for: str) -> None:
         d2_project_errors.PatternMismatchError: If pattern match fails.
 
     """
-    if not re.fullmatch(pattern, value):
+    does_match: bool = False
+    if not (does_match := bool(re.fullmatch(pattern, value))):
         raise d2_project_errors.PatternMismatchError(
             value=value,
             pattern=pattern,
             pattern_for=pattern_for,
         )
+    return does_match
 
 
 def entry_is_file(path: Path) -> None:
