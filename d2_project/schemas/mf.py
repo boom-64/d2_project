@@ -37,20 +37,31 @@ _bungie_response_data_attrs_conversion = {
 
 @dataclass(frozen=True, init=False)
 class BungieResponseData:
+    """Class for handling Bungie response data.
+
+    Attributes:
+        raw_data (Response): Raw data from Bungie.
+
+    Properties:
+        error_code (int): Bungie error code.
+        throttle_seconds (int): Throttle seconds from Bungie.
+        error_status (str): Error message received.
+        message (str): Message from Bungie.
+        message_data (dict[str, Any]): Message data received.
+        response (dict[str, Any]): Response data e.g. manifest location.
+
+    """
+
     raw_data: Response
 
     def __post_init__(self) -> None:
         """Initialize BungieResponseData by parsing and validating response.
 
-        Args:
-            raw_data (Response): The raw response object returned by
-                'requests.get()'.
-
         Raises:
-            ValueError: If the JSON decoding fails, required fields are
-                missing, or unexpected fields are present in the response.
-            KeyError:
-            ValueError:
+            d2_project_errors.UnexpectedBungieResponseFieldError: If unexpected
+                fields are present in the response.
+            d2_project_errors.MissingBungieResponseFieldError: If an expected
+                field is missing from the response.
 
         """
         try:
@@ -59,9 +70,9 @@ class BungieResponseData:
             if diff := set(json_data) - set(
                 _bungie_response_data_attrs_conversion.values(),
             ):
-                raise ValueError(
-                    "Unexpected components in response: "
-                    + ", ".join(f"{k}={json_data[k]!r}" for k in diff),
+                raise d2_project_errors.UnexpectedBungieResponseFieldError(
+                    extra_components=diff,
+                    received_data=json_data,
                 )
 
         except KeyError as e:
@@ -87,30 +98,37 @@ class BungieResponseData:
 
     @property
     def _raw_data_as_json(self) -> dict[str, Any]:
+        """Convert raw data to dict."""
         return self.raw_data.json()
 
     @property
     def error_code(self) -> int:
+        """Bungie error code."""
         return self._raw_data_as_json["ErrorCode"]
 
     @property
     def throttle_seconds(self) -> int:
+        """Throttle seconds from Bungie."""
         return self._raw_data_as_json["ThrottleSeconds"]
 
     @property
     def error_status(self) -> str:
+        """Error status from Bungie."""
         return self._raw_data_as_json["ErrorStatus"]
 
     @property
     def message(self) -> str:
+        """Message from Bungie."""
         return self._raw_data_as_json["Message"]
 
     @property
     def message_data(self) -> dict[str, Any]:
+        """Message data from Bungie."""
         return self._raw_data_as_json["MessageData"]
 
     @property
     def response(self) -> dict[str, Any]:
+        """Response from Bungie."""
         return self._raw_data_as_json["Response"]
 
 
@@ -162,6 +180,7 @@ class ManifestLocationData(BungieResponseData):
 
     @property
     def remote_mf_path(self) -> str:
+        """Get remote manifest path."""
         delved_remote_mf_path = (
             delved_langs := self._get_delved_remote_mf_langs()
         ).get(
@@ -178,10 +197,12 @@ class ManifestLocationData(BungieResponseData):
 
     @property
     def remote_mf_name(self) -> str:
+        """Get remote manifest name from path."""
         return self.remote_mf_path.split("/")[-1]
 
     @property
     def remote_mf_url(self) -> general_schemas.ParsedURL:
+        """Construct URL from path."""
         return general_schemas.ParsedURL.from_base_and_path(
             base_url=d2_project_config.settings.mf_loc_base_url,
             path=self.remote_mf_path,
