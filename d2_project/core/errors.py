@@ -6,6 +6,9 @@ from __future__ import annotations
 # ==== Standard Library Imports ====
 from typing import TYPE_CHECKING
 
+# ==== Non-Standard Library Imports ====
+import iso639
+
 # ==== Type Checking ====
 if TYPE_CHECKING:
     from pathlib import Path
@@ -471,6 +474,36 @@ class TooManyManifestsError(FileExistsError):
             f"Directory '{mf_dir_path} contains too many manifest candidates, "
             f"including both '{mf_candidates[0].name}' and "
             f"'{mf_candidates[1].name}'."
+        )
+        super().__init__(message)
+        self.message: str = message
+
+
+class ManifestLangUnavailableError(ValueError):
+    """Custom exception for when a manifest language is currently unavailable.
+
+    Attributes:
+        mf_lang (str): Desired manifest language.
+        available_langs (list): List of available languages.
+
+    """
+
+    def __init__(
+        self,
+        *,
+        desired_mf_lang: iso639.Language,
+        available_langs: list[str],
+    ) -> None:
+        """Initialise class."""
+        self.desired_mf_lang: iso639.Language | None = desired_mf_lang or None
+        self.available_langs: list[str] = available_langs
+        available_lang_names: list[str] = [
+            iso639.Language.match(code.split("-")[0]).name
+            for code in available_langs
+        ]
+        message: str = (
+            f"Language {desired_mf_lang.name} unavailable. Available "
+            f"languages: {', '.join(available_lang_names)}."
         )
         super().__init__(message)
         self.message: str = message
