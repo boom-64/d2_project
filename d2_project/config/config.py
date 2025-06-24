@@ -20,28 +20,20 @@ from string import Template
 from typing import TYPE_CHECKING
 
 # ==== Non-Standard Library Imports ====
+import iso639
 import toml
 
 # ==== Local Module Imports ====
 import d2_project.core.errors as d2_project_errors
+import d2_project.core.validators as d2_project_validators
 
 # ==== Dataclasses Needed For TypeAliases ====
 # Cannot use TypeAliases from below here.
 
 
 @dataclass(frozen=True)
-class ManifestZipStructure:
-    """Dataclass for manifest zip structure.
-
-    Attributes:
-        expected_file_count (int): Expected number of files in the archive.
-        expected_dir_count (int): Expected number of directories in the
-            archive.
-
-    """
-
-    expected_file_count: int
-    expected_dir_count: int
+class CustomDictStructure:
+    """Parent class for custom dict structures for method sharing."""
 
     def to_dict(self) -> dict[str, int]:
         """Convert instance to dictionary.
@@ -53,9 +45,45 @@ class ManifestZipStructure:
         return {f.name: getattr(self, f.name) for f in fields(self)}
 
 
-_manifest_zip_structure = ManifestZipStructure(
-    expected_dir_count=0,
+@dataclass(frozen=True)
+class ManifestZipStructure(CustomDictStructure):
+    """Dataclass for manifest zip structure.
+
+    Attributes:
+        expected_file_count (int): Expected number of files in the archive.
+        expected_dir_count (int): Expected number of directories in the
+            archive.
+
+    Methods:
+        to_dict: Converts ManifestZipStructure object to dict.
+
+    """
+
+    expected_file_count: int
+    expected_dir_count: int
+
+
+@dataclass(frozen=True)
+class ManifestResponseStructure(CustomDictStructure):
+    """Dataclass for manifest response structure.
+
+    Attributes:
+        keyX: Dict keys parents to children
+
+    """
+
+    key_0: str
+    key_1: str
+
+
+_manifest_zip_structure: ManifestZipStructure = ManifestZipStructure(
     expected_file_count=1,
+    expected_dir_count=0,
+)
+
+_mf_response_structure: ManifestResponseStructure = ManifestResponseStructure(
+    key_0="mobileWorldContentPaths",
+    key_1="$mf_lang",
 )
 
 # ==== Type Checking ====
@@ -68,7 +96,7 @@ if TYPE_CHECKING:
     # ==== Custom TypeAlias Import ====
 
     TomlValue: TypeAlias = (
-        bool | Path | int | float | str | ManifestZipStructure
+        bool | Path | int | float | str | CustomDictStructure
     )
 
 
@@ -171,13 +199,13 @@ class SettingsSanity:
         if isinstance(value, bool):
             serialised = "true" if value else "false"
 
-        if isinstance(value, Path):
+        elif isinstance(value, Path):
             serialised = f'"{value}"'
 
-        if isinstance(value, (int, float)):
+        elif isinstance(value, (int, float)):
             serialised = str(value)
 
-        if isinstance(value, str):
+        elif isinstance(value, str):
             if self._needs_triple_quotes(value):
                 escaped: str = value.replace('"""', '\\"""')
                 serialised = (
@@ -187,26 +215,26 @@ class SettingsSanity:
                 serialised = f'"{value}"'
 
         # Must be ManifestZipStructure instance
-        if isinstance(value, ManifestZipStructure):
-            if not value:
-                serialised = "{ }"
-            else:
-                parts: list[str] = []
-                for attribute in fields(value):
-                    key: str = (attribute_name := attribute.name)
-                    if not self._is_bare_key(attribute_name):
-                        key = f'"{attribute_name}"'
-                    serialised_value_str: str = self._toml_serialise_value(
-                        getattr(
-                            value,
-                            attribute.name,
-                        ),
-                    )
-                    parts.append(
-                        f"{key} = {serialised_value_str}",
-                    )
+        elif not value:
+            serialised = "{ }"
 
-                serialised = "{ " + ", ".join(parts) + " }"
+        else:
+            parts: list[str] = []
+            for attribute in fields(value):
+                key: str = (attribute_name := attribute.name)
+                if not self._is_bare_key(attribute_name):
+                    key = f'"{attribute_name}"'
+                serialised_value_str: str = self._toml_serialise_value(
+                    getattr(
+                        value,
+                        attribute.name,
+                    ),
+                )
+                parts.append(
+                    f"{key} = {serialised_value_str}",
+                )
+
+            serialised = "{ " + ", ".join(parts) + " }"
 
         return serialised
 
@@ -229,6 +257,17 @@ class SettingsSanity:
 
         """
         data = toml.load(path)
+        dataclass_mappings: dict[
+            str,
+            type[ManifestZipStructure | ManifestResponseStructure],
+        ] = {
+            "mf_zip_structure": ManifestZipStructure,
+            "mf_response_structure": ManifestResponseStructure,
+        }
+        for key, dataclass_type in dataclass_mappings.items():
+            if key in data and isinstance(data[key], dict):
+                data[key] = dataclass_type(**data[key])
+
         return cls(**data)
 
 
@@ -239,22 +278,16 @@ class Sanity(SettingsSanity):
     This class is used to generate a 'sanity' object for use across the
     program with callable sanity checkers for each non-flag attribute.
 
-    The class instance should be generated using 'Sanity.from_toml()' with
-    one positional arg being the path to a TOML file, by default
+    The class instance should be generated using 'SettingsSanity.from_toml()'
+    with one positional arg being the path to a TOML file, by default
     'sanity.toml' in the same directory as this file. Attributes can be set
     in the TOML file to overwrite the defaults listed here.
-
-    The method 'd2_project.utils.general.regenerate_toml()' can be used to
-    regenerate a TOML file with the defaults here at the passed path.
 
     Attributes:
         strict (bool): Whether the sanity checkers should raise or log and
             silently fail.
         expected_remote_lang_dir (str): The expected remote path of the
             language directory each containing a manifest location.
-
-    Class methods:
-        from_toml(): Generator for 'sanity: Sanity' object.
 
     Methods:
         check_remote_mf_dir(): Sanity checker for 'expected_remote_lang_dir'
@@ -270,6 +303,16 @@ class Sanity(SettingsSanity):
     # ==== Remote Manifest Location Attributes ====
 
     expected_remote_lang_dir: str = "/common/destiny_content/sqlite/"
+
+    # ==== Post-Initialisation ====
+
+    def __post_init__(self) -> None:
+        """Post-initialisation."""
+        d2_project_validators.str_matches_pattern(
+            value=self.expected_remote_lang_dir,
+            pattern=d2_project_validators.url_path_pattern.pattern,
+            pattern_for=d2_project_validators.url_path_pattern.pattern_for,
+        )
 
     # ==== Methods ====
 
@@ -311,13 +354,10 @@ class Settings(SettingsSanity):
     This class is used to generate a 'settings' object for use across the
     program.
 
-    The class instance should be generated using 'Settings.from_toml()' with
-    one positional arg being the path to a TOML file, by default
+    The class instance should be generated using 'SettingsSanity.from_toml()'
+    with one positional arg being the path to a TOML file, by default
     'settings.toml' in the same directory as this file. Attributes can be set
     in the TOML file to overwrite the defaults listed here.
-
-    The method 'd2_project.utils.general.regenerate_toml()' can be used to
-    regenerate a TOML file with the defaults here at the passed path.
 
     Attributes:
         _expected_mf_name_template_str (str): Converted Template object for
@@ -349,7 +389,7 @@ class Settings(SettingsSanity):
     _expected_mf_name_template_str: str = (
         "^${starts_with}[a-fA-F0-9]{32}${extension}$$"
     )
-
+    _desired_mf_lang: str = "en"
     # ==== Public Manifest Filename Attributes
 
     mf_extension: str = ".content"
@@ -360,7 +400,8 @@ class Settings(SettingsSanity):
 
     mf_finder_url: str = "https://www.bungie.net/Platform/Destiny/Manifest"
     mf_loc_base_url: str = "https://www.bungie.net"
-    mf_lang: str = "en"
+    _mf_response_structure: ManifestResponseStructure = _mf_response_structure
+
     api_key: str = "d4705221d56b4040b8c5c6b4ebd58757"
     force_update: bool = True
 
@@ -373,6 +414,14 @@ class Settings(SettingsSanity):
 
     def __post_init__(self) -> None:
         """Post-initialisation."""
+        for suffix in (self.mf_extension, self.mf_bak_ext):
+            d2_project_validators.str_matches_pattern(
+                value=suffix,
+                pattern=d2_project_validators.file_suffix_pattern.pattern,
+                pattern_for=d2_project_validators.file_suffix_pattern.pattern_for,
+            )
+        for url in (self.mf_finder_url, self.mf_loc_base_url):
+            d2_project_validators.str_is_valid_url(url)
         if not self.mf_dir_path.is_dir():
             raise NotADirectoryError
 
@@ -409,6 +458,21 @@ class Settings(SettingsSanity):
             extension=self.mf_extension,
         )
 
+    @property
+    def desired_mf_lang(self) -> iso639.Language:
+        """Validate _mf_lang and return iso639.Language object."""
+        return iso639.Language.match(self._desired_mf_lang)
+
+    @property
+    def mf_response_structure(self) -> ManifestResponseStructure:
+        """Substitute and return _mf_response_structure."""
+        return ManifestResponseStructure(
+            key_0=self._mf_response_structure.key_0,
+            key_1=Template(self._mf_response_structure.key_1).substitute(
+                mf_lang=self.desired_mf_lang,
+            ),
+        )
+
 
 # ==== Instance Generation ====
 
@@ -424,6 +488,9 @@ sanity: Sanity = Sanity.from_toml(
 """
 sanity_toml: Path = Path(__file__).resolve().parent / "sanity.toml"
 settings_toml: Path = Path(__file__).resolve().parent / "settings.toml"
-settings.regenerate_toml(settings_toml,)
-sanity.regenerate_toml(sanity_toml, exclude_fields={'strict'},)
+settings.regenerate_toml(settings_toml)
+sanity.regenerate_toml(
+    sanity_toml,
+    exclude_fields={"strict"},
+)
 """
