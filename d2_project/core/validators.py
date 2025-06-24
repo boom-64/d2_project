@@ -7,6 +7,9 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+# ==== Non-Standard Libraries ====
+import validators
+
 # ==== Local Modules ====
 import d2_project.core.errors as d2_project_errors
 
@@ -40,6 +43,11 @@ lc_checksum_pattern: _ComparePattern = _ComparePattern(
 file_suffix_pattern: _ComparePattern = _ComparePattern(
     pattern=r"\.[A-Za-z0-9._-]+",
     pattern_for="file suffix",
+)
+
+url_path_pattern: _ComparePattern = _ComparePattern(
+    pattern="^/?(?:[A-Za-z0-9._~!$&'()*+,;=:@%-]+/)*[A-Za-z0-9._~!$&'()*+,;=:@%-]*/?$",
+    pattern_for="URL path",
 )
 # ==== Functions ====
 
@@ -116,3 +124,9 @@ def entry_is_file(path: Path) -> None:
     """
     if not path.is_file():
         raise d2_project_errors.IsNotFileError(path)
+
+
+def str_is_valid_url(value: str) -> None:
+    """Validate URL."""
+    if not validators.url(value):
+        raise ValueError
