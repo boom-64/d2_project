@@ -1,10 +1,11 @@
 # _expected_mf_name_template_str = "^${starts_with}[a-fA-F0-9]{32}${extension}$$"
+# _mf_lang = "en"
 # mf_extension = ".content"
 # mf_starts_with = "world_sql_content_"
 # mf_zip_structure = { expected_file_count = 1, expected_dir_count = 0 }
 # mf_finder_url = "https://www.bungie.net/Platform/Destiny/Manifest"
 # mf_loc_base_url = "https://www.bungie.net"
-# mf_lang = "en"
+# _mf_response_structure = { key_0 = "mobileWorldContentPaths", key_1 = "$mf_lang" }
 # api_key = "d4705221d56b4040b8c5c6b4ebd58757"
 # force_update = true
 # mf_dir_path = "/Users/oranqe/d2_project/d2_project/manifest"

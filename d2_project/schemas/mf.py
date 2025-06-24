@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
-from dataclasses import dataclass, field
+from dataclasses import dataclass, fields
 from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
@@ -37,29 +37,9 @@ _bungie_response_data_attrs_conversion = {
 
 @dataclass(frozen=True, init=False)
 class BungieResponseData:
-    """Custom class for response from Bungie.
+    raw_data: Response
 
-    Attributes:
-        _attrs_conversion ()
-        error_code (int): Error code supplied by Bungie.
-        throttle_seconds (int): Rate-limiting info.
-        error_status (str): Error status supplied by Bungie.
-        message (str): Error message received from Bungie.
-        message_data (str): Message data from Bungie.
-        response (dict[str, any]): Response data.
-
-    """
-
-    error_code: int = field(init=False)
-    throttle_seconds: int = field(init=False)
-    error_status: str = field(init=False)
-    message: str = field(init=False)
-    message_data: dict[str, Any] = field(init=False)
-    response: dict[str, Any] = field(init=False)
-
-    # ==== Initialisation ====
-
-    def __init__(self, raw_data: Response) -> None:
+    def __post_init__(self) -> None:
         """Initialize BungieResponseData by parsing and validating response.
 
         Args:
@@ -74,11 +54,7 @@ class BungieResponseData:
 
         """
         try:
-            json_data = raw_data.json()
-            attrs = {
-                k: json_data[v]
-                for k, v in (_bungie_response_data_attrs_conversion.items())
-            }
+            json_data: dict[str, Any] = self._raw_data_as_json
 
             if diff := set(json_data) - set(
                 _bungie_response_data_attrs_conversion.values(),
@@ -91,12 +67,7 @@ class BungieResponseData:
         except KeyError as e:
             raise d2_project_errors.MissingBungieResponseFieldError(e) from e
 
-        for key, val in attrs.items():
-            object.__setattr__(self, key, val)
-
         self._handle_error_code()
-
-    # ==== Error Handling ====
 
     def _handle_error_code(self) -> None:
         """Determine if the response indicates success from error_code.
@@ -114,66 +85,106 @@ class BungieResponseData:
                 )
             raise d2_project_errors.UnknownAPIError(response_data=self)
 
+    @property
+    def _raw_data_as_json(self) -> dict[str, Any]:
+        return self.raw_data.json()
 
-@dataclass(frozen=True, init=False)
+    @property
+    def error_code(self) -> int:
+        return self._raw_data_as_json["ErrorCode"]
+
+    @property
+    def throttle_seconds(self) -> int:
+        return self._raw_data_as_json["ThrottleSeconds"]
+
+    @property
+    def error_status(self) -> str:
+        return self._raw_data_as_json["ErrorStatus"]
+
+    @property
+    def message(self) -> str:
+        return self._raw_data_as_json["Message"]
+
+    @property
+    def message_data(self) -> dict[str, Any]:
+        return self._raw_data_as_json["MessageData"]
+
+    @property
+    def response(self) -> dict[str, Any]:
+        return self._raw_data_as_json["Response"]
+
+
+@dataclass(frozen=True)
 class ManifestLocationData(BungieResponseData):
     """Class for data pertaining to the latest manifest's location.
 
-    Attributes:
+    Properties:
         mf_remote_path (str): Remote path to manifest.
         mf_url (str): URL to manifest.
         mf_name (str): Filename of manifest.
-        lang (str): Language of manifest.
 
     """
 
-    mf_remote_path: str = field(init=False)
-    mf_url: str = field(init=False)
-    mf_name: str = field(init=False)
-    lang: str = field(init=False)
-
     # ==== Initialisation ====
 
-    def __init__(self, raw_data: Response) -> None:
+    def __post_init__(self) -> None:
         """Initialise class."""
-        super().__init__(raw_data)
-        self._validate_response_structure()
-        self._set_lang()
-        self._extract_mf_path()
         d2_project_config.sanity.check_remote_mf_dir(
-            remote_path=self.mf_remote_path,
+            remote_path=self.remote_mf_path,
         )
-        self._extract_mf_name()
-        self._construct_mf_url()
-
-    def _set_lang(self) -> None:
-        object.__setattr__(self, "lang", d2_project_config.settings.mf_lang)
-
-    def _validate_response_structure(self) -> None:
-        pass
-
-    def _extract_mf_path(self) -> None:
-        object.__setattr__(
-            self,
-            "mf_remote_path",
-            self.response["mobileWorldContentPaths"][self.lang],
+        d2_project_validators.str_matches_pattern(
+            value=self.remote_mf_name,
+            pattern=d2_project_config.settings.expected_mf_name_regex,
+            pattern_for="manifest file",
         )
 
-    def _extract_mf_name(self) -> None:
-        object.__setattr__(
-            self,
-            "mf_name",
-            self.mf_remote_path.split("/")[-1],
-        )
+    def _get_delved_remote_mf_langs(self) -> dict[str, str]:
+        response_delver: dict[str, Any] = self.response
 
-    def _construct_mf_url(self) -> None:
-        object.__setattr__(
-            self,
-            "mf_url",
-            general_schemas.ParsedURL.from_base_and_path(
-                base_url=d2_project_config.settings.mf_loc_base_url,
-                path=self.mf_remote_path,
-            ),
+        try:
+            for key in (
+                fields(
+                    d2_project_config.settings.mf_response_structure,
+                )
+            )[:-1]:
+                response_delver = response_delver[
+                    getattr(
+                        d2_project_config.settings.mf_response_structure,
+                        key.name,
+                    )
+                ]
+
+        except KeyError as e:
+            raise d2_project_errors.MissingBungieResponseFieldError(
+                original_key_error=e,
+            ) from e
+        return response_delver
+
+    @property
+    def remote_mf_path(self) -> str:
+        delved_remote_mf_path = (
+            delved_langs := self._get_delved_remote_mf_langs()
+        ).get(
+            d2_project_config.settings.desired_mf_lang.part1
+            or "MISSING_ISO_639_PART_1",
+        )
+        if delved_remote_mf_path is None:
+            raise d2_project_errors.ManifestLangUnavailableError(
+                available_langs=list(delved_langs.keys()),
+                desired_mf_lang=d2_project_config.settings.desired_mf_lang,
+            )
+
+        return delved_remote_mf_path
+
+    @property
+    def remote_mf_name(self) -> str:
+        return self.remote_mf_path.split("/")[-1]
+
+    @property
+    def remote_mf_url(self) -> general_schemas.ParsedURL:
+        return general_schemas.ParsedURL.from_base_and_path(
+            base_url=d2_project_config.settings.mf_loc_base_url,
+            path=self.remote_mf_path,
         )
 
 
@@ -349,10 +360,7 @@ class InstalledManifestData:
 
         try:
             mf_utils.dl_and_extract_mf_zip(
-                url=general_schemas.ParsedURL.from_base_and_path(
-                    base_url=d2_project_config.settings.mf_loc_base_url,
-                    path=mf_loc_data.mf_remote_path,
-                ).url,
+                url=mf_loc_data.remote_mf_url.url,
                 mf_dir_path=d2_project_config.settings.mf_dir_path,
                 mf_zip_structure=d2_project_config.settings.mf_zip_structure.to_dict(),
             )

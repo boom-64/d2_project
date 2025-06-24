@@ -19,7 +19,7 @@ installed_mf_data: mf_schemas.InstalledManifestData = (
     mf_schemas.InstalledManifestData()
 )
 
-if mf_loc_data.mf_name != (
+if mf_loc_data.remote_mf_name != (
     installed_mf_data.installed_mf_path.name
     if installed_mf_data.installed_mf_path is not None
     else None
