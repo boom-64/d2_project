@@ -369,6 +369,13 @@ class Settings(SettingsSanity):
     mf_dir_path: Path = Path(__file__).resolve().parents[1] / "manifest"
     mf_bak_ext: str = ".bak"
 
+    # ==== Post-Initialisation ====
+
+    def __post_init__(self) -> None:
+        """Post-initialisation."""
+        if not self.mf_dir_path.is_dir():
+            raise NotADirectoryError
+
     # ==== Properties ====
 
     @property

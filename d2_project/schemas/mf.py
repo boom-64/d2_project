@@ -179,16 +179,39 @@ class ManifestLocationData(BungieResponseData):
 
 @dataclass
 class InstalledManifestData:
+    """Dataclass for installed manifest data.
+
+    Properties:
+        installed_mf_path (Path | None): Path to installed manifest if one
+            exists, else None.
+        filename_pattern_expected (bool | None): Whether or not manifest name
+            matches the expected filename pattern if manifest exists, else
+            None.
+        installed_mf_extension (str): Extension of installed manifest if one
+            exists, else None.
+        expected_checksum (schemas.general.MD5Checksum): Expected checksum from
+            manifest filename if one exists, else None.
+        computed_checksum (schemas.general.MD5Checksum): Checksum computed from
+            manifest if file exists, else None
+        checksum_match (bool): Whether expected_checksum matches
+            computed_checksum if both exist, else None.
+
+    """
+
     # ==== Properties ====
     @property
     def installed_mf_path(self) -> Path | None:
-        if not (
-            mf_dir_path := d2_project_config.settings.mf_dir_path
-        ).is_dir():
-            raise NotADirectoryError(
-                f"{mf_dir_path} is not a directory",
-            )
+        """Get path to installed manifest if one exists.
 
+        Raises:
+            NotADirectoryError: _description_
+            FileExistsError: _description_
+
+        Returns:
+            Path: Path to existing manifest if one exists.
+            None: If no installed manifest exists.
+
+        """
         mf_candidates: list[Path] = []
         for entry in d2_project_config.settings.mf_dir_path.iterdir():
             if (
@@ -199,11 +222,9 @@ class InstalledManifestData:
 
                 # Raise early once more than one candidate found
                 if len(mf_candidates) > 1:
-                    raise FileExistsError(
-                        f"Directory {d2_project_config.settings.mf_dir_path} "
-                        f"contains too many compatible manifest files, "
-                        f"including both {mf_candidates[0]} and "
-                        f"{mf_candidates[1]}.",
+                    raise d2_project_errors.TooManyManifestsError(
+                        mf_dir_path=d2_project_config.settings.mf_dir_path,
+                        mf_candidates=mf_candidates,
                     )
 
         # Returns None if no candidate found
@@ -214,20 +235,19 @@ class InstalledManifestData:
         return mf_candidates[0]
 
     @property
-    def installed_mf_name(self) -> str | None:
-        name: str | None = None
-
-        if self.installed_mf_path:
-            name = self.installed_mf_path.name
-
-        return name
-
-    @property
     def filename_pattern_expected(self) -> bool | None:
-        if self.installed_mf_path and self.installed_mf_name:
+        """Whether or not filename pattern expected if mf exists else None.
+
+        Returns:
+            bool: If manifest exists, whether filename matches expected pattern
+                listed in d2_project_config.settings.
+            None: If manifest doesn't exist.
+
+        """
+        if self.installed_mf_path and self.installed_mf_path.name:
             try:
                 return d2_project_validators.str_matches_pattern(
-                    value=self.installed_mf_name,
+                    value=self.installed_mf_path.name,
                     pattern=d2_project_config.settings.expected_mf_name_regex,
                     pattern_for="(expected) manifest name",
                 )
@@ -236,14 +256,14 @@ class InstalledManifestData:
         return None
 
     @property
-    def installed_mf_extension(self) -> str | None:
-        extension: str | None = None
-        if self.installed_mf_path and self.filename_pattern_expected:  # pyright: ignore[reportUnnecessaryComparison]
-            extension = self.installed_mf_path.suffix
-        return extension
-
-    @property
     def expected_checksum(self) -> general_schemas.MD5Checksum | None:
+        """Get expected checksum for manifest if manifest exists.
+
+        Returns:
+            general_schemas.MD5Checksum: Expected checksum if manifest exists.
+            None: Else None.
+
+        """
         expected_checksum: general_schemas.MD5Checksum | None = None
         expected_checksum_str: str
 
@@ -269,6 +289,14 @@ class InstalledManifestData:
 
     @property
     def computed_checksum(self) -> general_schemas.MD5Checksum | None:
+        """Compute checksum if manifest exists else return None.
+
+        Returns:
+            general_schemas.MD5Checksum: Computed checksum for existing
+                manifest.
+            None: If none exists.\
+
+        """
         if self.installed_mf_path:
             return general_schemas.MD5Checksum.calc(
                 self.installed_mf_path,
@@ -277,6 +305,13 @@ class InstalledManifestData:
 
     @property
     def checksum_match(self) -> bool | None:
+        """Get whether or not checksum matches expected.
+
+        Returns:
+            bool: If manifest exists, whether or not checksum matches expected.
+            None: If no manifest exists.
+
+        """
         if self.expected_checksum and self.computed_checksum:
             return self.computed_checksum == self.expected_checksum
         return None
@@ -289,6 +324,19 @@ class InstalledManifestData:
         *,
         force_update: bool = False,
     ) -> InstalledManifestData:
+        """Update manifest if update required, or force if flag passed.
+
+        Args:
+            mf_loc_data (ManifestLocationData): Location data of remote
+                manifest.
+            force_update (bool, optional): Whether or not to force update
+                (defaults to False).
+
+        Returns:
+            InstalledManifestData: Manifest data of old manifest if no update
+                occured, else new manifest.
+
+        """
         bak_path: Path | None = (
             general_utils.append_suffix(
                 path=self.installed_mf_path,

@@ -446,3 +446,31 @@ class MissingBungieResponseFieldError(ValueError):
         )
         super().__init__(message)
         self.message: str = message
+
+
+class TooManyManifestsError(FileExistsError):
+    """Custom exception for when too many compatible manifests exist.
+
+    Attributes:
+        mf_dir_path (Path): Path to manifest directory.
+        mf_candidates (list[Path]): List of manifest candidates in mf_dir_path.
+        message (str): Message to pass to FileExistsError.
+
+    """
+
+    def __init__(
+        self,
+        *,
+        mf_dir_path: Path,
+        mf_candidates: list[Path],
+    ) -> None:
+        """Initialise class."""
+        self.mf_dir_path: Path = mf_dir_path
+        self.mf_candidates: list[Path] = mf_candidates
+        message: str = (
+            f"Directory '{mf_dir_path} contains too many manifest candidates, "
+            f"including both '{mf_candidates[0].name}' and "
+            f"'{mf_candidates[1].name}'."
+        )
+        super().__init__(message)
+        self.message: str = message
