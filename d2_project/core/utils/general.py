@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
+import logging
 import shutil
 import tempfile
 import zipfile
@@ -12,13 +13,20 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
-import d2_project.core.errors as d2_project_errors
 import d2_project.core.validators as d2_project_validators
 
 # ==== Type Checking ====
 if TYPE_CHECKING:
     from typing import Callable
     from zipfile import ZipInfo
+
+# ==== Logging Config ====
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+_logger = logging.getLogger(__name__)
 
 
 # ==== Functions ====
@@ -58,18 +66,23 @@ def mv_item(
     if dst.is_dir():
         target_path = dst / src.name
     elif src.is_dir():
-        raise d2_project_errors.DirToFileError(
-            src_dir=src,
-            dst_file=dst,
+        _logger.critical(
+            "Cannot move directory '%s' to file path '%s'.",
+            src,
+            dst,
         )
+        raise FileExistsError
 
     # Check and clear 'target_path' if 'overwrite==True', else raise
     if target_path.exists():
         if not overwrite:
-            raise d2_project_errors.DestinationExistsError(
-                src=src,
-                dst=target_path,
+            _logger.critical(
+                "Cannot move file: destination '%s' already exists. Source: "
+                "'%s'",
+                src,
+                target_path,
             )
+            raise FileExistsError
         if target_path.is_dir():
             shutil.rmtree(target_path)
         else:
@@ -118,7 +131,11 @@ def extract_zip(
 
     # Raise if 'extract_to' exists AND isn't a directory
     if extract_to.exists() and not extract_to.is_dir():
-        raise d2_project_errors.ExtractionTargetNotADirectoryError(extract_to)
+        _logger.critical(
+            "Must extract to a directory; '%s' is not a directory",
+            extract_to.resolve(),
+        )
+        raise NotADirectoryError
     # Create 'extract_to' directory, if none exists
     extract_to.mkdir(parents=True, exist_ok=True)
 
@@ -189,8 +206,12 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
     # Validate non-emptiness of 'files_to_keep' and assign 'sample_file'
     try:
         sample_file = next(iter(keep))
-    except StopIteration as e:
-        raise d2_project_errors.NoFilesToKeepError from e
+    except StopIteration:
+        _logger.critical(
+            "Passed 'files_to_keep' empty: must include a non-zero exception "
+            "file count.",
+        )
+        raise
 
     directory = sample_file.parent
 
@@ -198,22 +219,26 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
     for f in keep:
         d2_project_validators.entry_is_file(f)
         if f.parent != directory:
-            raise d2_project_errors.NonSiblingsError(
-                sample_file=sample_file,
-                checked_file=f,
+            _logger.critical(
+                "Passed file-to-keep '%s' not in same directory as other "
+                "passed file '%s' - all passed files must be siblings.",
+                f,
+                sample_file,
             )
+            raise ValueError
 
     # Unlink non-'files_to_keep' paths
     for item in directory.iterdir():
         if item not in keep and (item.is_file() or item.is_symlink()):
             try:
                 item.unlink()
-            except OSError as e:
-                raise d2_project_errors.FileDeleteFailedError(
-                    item_name=item.name,
-                    directory=directory,
-                    original_exception=e,
-                ) from e
+            except OSError:
+                _logger.critical(
+                    "Failed to delete item '%s' from '%s'.",
+                    item.name,
+                    directory,
+                )
+                raise
 
 
 def rm_file(file: Path) -> None:
@@ -280,7 +305,8 @@ def rm_final_suffix(*, path: Path, overwrite: bool = False) -> Path:
     d2_project_validators.entry_is_file(path)
 
     if not path.suffix:
-        raise d2_project_errors.NoSuffixError(path)
+        _logger.critical("File '%s' has no suffix to be removed.", path)
+        raise ValueError
 
     new_path: Path = path.with_suffix("")
 
@@ -314,7 +340,8 @@ def _update_filename(
 
     """
     if new_path.exists() and not overwrite:
-        raise d2_project_errors.FileExistsAtPathError(new_path.resolve())
+        _logger.exception("File with path '%s' already exists.", new_path)
+        raise FileExistsError
 
     old_path.replace(new_path)
 
