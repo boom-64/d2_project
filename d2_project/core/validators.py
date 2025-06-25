@@ -14,13 +14,11 @@ import validators
 import d2_project.core.errors as d2_project_errors
 
 # ==== Type Checking ====
-
 if TYPE_CHECKING:
     from pathlib import Path
 
+
 # ==== String Patterns ====
-
-
 @dataclass
 class _ComparePattern:
     """Class for comparing patterns.
@@ -49,9 +47,9 @@ url_path_pattern: _ComparePattern = _ComparePattern(
     pattern="^/?(?:[A-Za-z0-9._~!$&'()*+,;=:@%-]+/)*[A-Za-z0-9._~!$&'()*+,;=:@%-]*/?$",
     pattern_for="URL path",
 )
+
+
 # ==== Functions ====
-
-
 def expected_entry_count(
     *,
     entry_type: str,

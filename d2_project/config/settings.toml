@@ -5,8 +5,8 @@
 # mf_zip_structure = { expected_file_count = 1, expected_dir_count = 0 }
 # mf_finder_url = "https://www.bungie.net/Platform/Destiny/Manifest"
 # mf_loc_base_url = "https://www.bungie.net"
-# _mf_response_structure = { key_0 = "mobileWorldContentPaths", key_1 = "$mf_lang" }
+# _mf_response_structure = { key_0 = "mobileWorldContentPaths", key_1 = "$desired_mf_lang" }
 # api_key = "d4705221d56b4040b8c5c6b4ebd58757"
 # force_update = true
-# mf_dir_path = "/Users/oranqe/d2_project/d2_project/manifest"
+# _mf_dir_path = "/Users/oranqe/d2_project/d2_project/manifest"
 # mf_bak_ext = ".bak"

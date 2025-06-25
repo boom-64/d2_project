@@ -8,10 +8,10 @@ defaults to regenerate a TOML file.
 """
 
 # ==== Import Annotations From __future__ ====
-
 from __future__ import annotations
 
 # ==== Standard Library Imports ====
+import logging
 import re
 import textwrap
 from dataclasses import MISSING, dataclass, fields
@@ -24,15 +24,21 @@ import iso639
 import toml
 
 # ==== Local Module Imports ====
-import d2_project.core.errors as d2_project_errors
 import d2_project.core.validators as d2_project_validators
+
+# ==== Logging Config ====
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+_logger = logging.getLogger(__name__)
+
 
 # ==== Dataclasses Needed For TypeAliases ====
 # Cannot use TypeAliases from below here.
-
-
 @dataclass(frozen=True)
-class CustomDictStructure:
+class _CustomDictStructure:
     """Parent class for custom dict structures for method sharing."""
 
     def to_dict(self) -> dict[str, int]:
@@ -46,7 +52,7 @@ class CustomDictStructure:
 
 
 @dataclass(frozen=True)
-class ManifestZipStructure(CustomDictStructure):
+class _ManifestZipStructure(_CustomDictStructure):
     """Dataclass for manifest zip structure.
 
     Attributes:
@@ -55,7 +61,7 @@ class ManifestZipStructure(CustomDictStructure):
             archive.
 
     Methods:
-        to_dict: Converts ManifestZipStructure object to dict.
+        to_dict: Converts _ManifestZipStructure object to dict.
 
     """
 
@@ -64,7 +70,7 @@ class ManifestZipStructure(CustomDictStructure):
 
 
 @dataclass(frozen=True)
-class ManifestResponseStructure(CustomDictStructure):
+class _ManifestResponseStructure(_CustomDictStructure):
     """Dataclass for manifest response structure.
 
     Attributes:
@@ -76,32 +82,32 @@ class ManifestResponseStructure(CustomDictStructure):
     key_1: str
 
 
-_manifest_zip_structure: ManifestZipStructure = ManifestZipStructure(
+_manifest_zip_structure: _ManifestZipStructure = _ManifestZipStructure(
     expected_file_count=1,
     expected_dir_count=0,
 )
 
-_mf_response_structure: ManifestResponseStructure = ManifestResponseStructure(
-    key_0="mobileWorldContentPaths",
-    key_1="$mf_lang",
+_mf_response_structure: _ManifestResponseStructure = (
+    _ManifestResponseStructure(
+        key_0="mobileWorldContentPaths",
+        key_1="$desired_mf_lang",
+    )
 )
 
 # ==== Type Checking ====
-
 if TYPE_CHECKING:
     # ==== Standard Library Imports ====
-
     from typing import Self, TypeAlias
 
     # ==== Custom TypeAlias Import ====
-
     TomlValue: TypeAlias = (
-        bool | Path | int | float | str | CustomDictStructure
+        bool | Path | int | float | str | _CustomDictStructure
     )
 
 
+# ==== Dataclasses ====
 @dataclass(frozen=True)
-class SettingsSanity:
+class ConfigSuperclass:
     """Superclass for Settings and Sanity classes.
 
     This class is for sharing regenerate_toml() and related functions, as well
@@ -194,7 +200,7 @@ class SettingsSanity:
             str: Serialised value.
 
         """
-        serialised: str = ""
+        serialised: str
 
         if isinstance(value, bool):
             serialised = "true" if value else "false"
@@ -259,10 +265,10 @@ class SettingsSanity:
         data = toml.load(path)
         dataclass_mappings: dict[
             str,
-            type[ManifestZipStructure | ManifestResponseStructure],
+            type[_ManifestZipStructure | _ManifestResponseStructure],
         ] = {
-            "mf_zip_structure": ManifestZipStructure,
-            "mf_response_structure": ManifestResponseStructure,
+            "mf_zip_structure": _ManifestZipStructure,
+            "mf_response_structure": _ManifestResponseStructure,
         }
         for key, dataclass_type in dataclass_mappings.items():
             if key in data and isinstance(data[key], dict):
@@ -272,7 +278,7 @@ class SettingsSanity:
 
 
 @dataclass(frozen=True)
-class Sanity(SettingsSanity):
+class Sanity(ConfigSuperclass):
     """Class for generating 'sanity' object for sanity checking.
 
     This class is used to generate a 'sanity' object for use across the
@@ -297,15 +303,12 @@ class Sanity(SettingsSanity):
     """
 
     # ==== Flags ====
-
     strict: bool = False
 
     # ==== Remote Manifest Location Attributes ====
-
     expected_remote_lang_dir: str = "/common/destiny_content/sqlite/"
 
     # ==== Post-Initialisation ====
-
     def __post_init__(self) -> None:
         """Post-initialisation."""
         d2_project_validators.str_matches_pattern(
@@ -315,7 +318,6 @@ class Sanity(SettingsSanity):
         )
 
     # ==== Methods ====
-
     def check_remote_mf_dir(
         self,
         remote_path: str,
@@ -334,13 +336,17 @@ class Sanity(SettingsSanity):
             ValueError: If self.strict and the check fails.
 
         """
-        if not remote_path.startswith(self.expected_remote_lang_dir):
-            if self.strict:
-                raise d2_project_errors.ManifestRemotePathError(
-                    path=remote_path,
-                )
+        _clean_erld: str = "/" + self.expected_remote_lang_dir.strip("/") + "/"
+        if not remote_path.startswith(_clean_erld):
+            _logger.warning(
+                "Unexpected remote manifest path format: '%s'. Bungie may have"
+                " changed manifest path format from '%s/$MANIFEST_NAME'.",
+                remote_path,
+                _clean_erld,
+            )
 
-            print(f"{remote_path} != {self.expected_remote_lang_dir}")
+            if self.strict:
+                raise ValueError
 
     def disable_strict(self) -> None:
         """Set Sanity instance attribute 'strict' to False."""
@@ -348,7 +354,7 @@ class Sanity(SettingsSanity):
 
 
 @dataclass(frozen=True)
-class Settings(SettingsSanity):
+class Settings(ConfigSuperclass):
     """Class for generating 'settings' object for sanity checking.
 
     This class is used to generate a 'settings' object for use across the
@@ -385,33 +391,28 @@ class Settings(SettingsSanity):
     """
 
     # ==== Private Manifest Filename Attributes ====
-
     _expected_mf_name_template_str: str = (
         "^${starts_with}[a-fA-F0-9]{32}${extension}$$"
     )
     _desired_mf_lang: str = "en"
-    # ==== Public Manifest Filename Attributes
 
+    # ==== Public Manifest Filename Attributes
     mf_extension: str = ".content"
     mf_starts_with: str = "world_sql_content_"
-    mf_zip_structure: ManifestZipStructure = _manifest_zip_structure
+    mf_zip_structure: _ManifestZipStructure = _manifest_zip_structure
 
     # ==== Bungie Request Attributes ====
-
     mf_finder_url: str = "https://www.bungie.net/Platform/Destiny/Manifest"
     mf_loc_base_url: str = "https://www.bungie.net"
-    _mf_response_structure: ManifestResponseStructure = _mf_response_structure
-
+    _mf_response_structure: _ManifestResponseStructure = _mf_response_structure
     api_key: str = "d4705221d56b4040b8c5c6b4ebd58757"
     force_update: bool = True
 
     # ==== Local Filesystem Attributes ====
-
-    mf_dir_path: Path = Path(__file__).resolve().parents[1] / "manifest"
+    _mf_dir_path: str = str(Path(__file__).resolve().parents[1] / "manifest")
     mf_bak_ext: str = ".bak"
 
     # ==== Post-Initialisation ====
-
     def __post_init__(self) -> None:
         """Post-initialisation."""
         for suffix in (self.mf_extension, self.mf_bak_ext):
@@ -423,10 +424,13 @@ class Settings(SettingsSanity):
         for url in (self.mf_finder_url, self.mf_loc_base_url):
             d2_project_validators.str_is_valid_url(url)
         if not self.mf_dir_path.is_dir():
+            _logger.critical(
+                "Configured 'mf_dir_path='%s' is not a directory.",
+                self.mf_dir_path,
+            )
             raise NotADirectoryError
 
     # ==== Properties ====
-
     @property
     def expected_mf_name_template(self) -> Template:
         """Converts _expected_mf_name_template_str to Template.
@@ -464,22 +468,25 @@ class Settings(SettingsSanity):
         return iso639.Language.match(self._desired_mf_lang)
 
     @property
-    def mf_response_structure(self) -> ManifestResponseStructure:
+    def mf_response_structure(self) -> _ManifestResponseStructure:
         """Substitute and return _mf_response_structure."""
-        return ManifestResponseStructure(
+        return _ManifestResponseStructure(
             key_0=self._mf_response_structure.key_0,
             key_1=Template(self._mf_response_structure.key_1).substitute(
-                mf_lang=self.desired_mf_lang,
+                desired_mf_lang=self.desired_mf_lang,
             ),
         )
 
+    @property
+    def mf_dir_path(self) -> Path:
+        """Return Path(self._mf_dir_path)."""
+        return Path(self._mf_dir_path)
+
 
 # ==== Instance Generation ====
-
 settings: Settings = Settings.from_toml(
     Path(__file__).resolve().parent / "settings.toml",
 )
-
 sanity: Sanity = Sanity.from_toml(
     Path(__file__).resolve().parent / "sanity.toml",
 )

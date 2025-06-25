@@ -1,11 +1,10 @@
 """General utilities."""
 
-# ==== Import Annotations from __future__
+# ==== Import Annotations from __future__ ====
 
 from __future__ import annotations
 
 # ==== Standard Libraries ====
-import logging
 import shutil
 import tempfile
 import zipfile
@@ -16,23 +15,13 @@ from typing import TYPE_CHECKING
 import d2_project.core.errors as d2_project_errors
 import d2_project.core.validators as d2_project_validators
 
-# ==== Type Checking ==========================================================
-
+# ==== Type Checking ====
 if TYPE_CHECKING:
     from typing import Callable
     from zipfile import ZipInfo
 
-# ==== Logging ====
-
-logging.basicConfig(
-    filename="app.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
 
 # ==== Functions ====
-
-
 def mv_item(
     *,
     src: Path,
