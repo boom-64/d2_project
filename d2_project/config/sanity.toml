@@ -1,1 +1,9 @@
 # expected_remote_lang_dir = "/common/destiny_content/sqlite/"
+# expected_bungie_response_data_fields = [
+#   "ErrorCode",
+#   "ThrottleSeconds",
+#   "ErrorStatus",
+#   "Message",
+#   "MessageData",
+#   "Response",
+# ]

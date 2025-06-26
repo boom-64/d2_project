@@ -30,14 +30,6 @@ logging.basicConfig(
 _logger = logging.getLogger(__name__)
 
 # ==== Local Variables ====
-_expected_bungie_response_data_fields = {
-    "ErrorCode",
-    "ThrottleSeconds",
-    "ErrorStatus",
-    "Message",
-    "MessageData",
-    "Response",
-}
 T = TypeVar("T")
 
 # ==== Classes ===
@@ -145,7 +137,9 @@ class BungieResponseData:
     def raw_data_as_json(self) -> dict[str, Any]:
         """Convert raw data to dict."""
         json_data: dict[str, Any] = self.raw_data.json()
-        if diff := set(json_data) - _expected_bungie_response_data_fields:
+        if diff := set(json_data) - set(
+            d2_project_config.sanity.expected_bungie_response_data_fields,
+        ):
             _logger.exception(
                 "Unexpected components in response: %s",
                 ", ".join(f"{k}={json_data[k]!r}" for k in diff),

@@ -101,7 +101,13 @@ if TYPE_CHECKING:
 
     # ==== Custom TypeAlias Import ====
     TomlValue: TypeAlias = (
-        bool | Path | int | float | str | _CustomDictStructure
+        bool
+        | Path
+        | int
+        | float
+        | str
+        | tuple[str, str, str, str, str, str]
+        | _CustomDictStructure
     )
 
 
@@ -184,7 +190,15 @@ class ConfigSuperclass:
             bool: Whether the string can be used as a bare key.
 
         """
-        return re.fullmatch(r"[A-Za-z0-9_-]+", s) is not None
+        return bool(re.fullmatch(r"[A-Za-z0-9_-]+", s))
+
+    def _serialise_string(self, value: str) -> str:
+        if self._needs_triple_quotes(value):
+            escaped: str = value.replace('"""', '\\"""')
+            serialised = '"""\n' + textwrap.indent(escaped, "    ") + '\n"""'
+        else:
+            serialised = f'"{value}"'
+        return serialised
 
     def _toml_serialise_value(self, value: TomlValue) -> str:
         """Serialise value for use in TOML file.
@@ -212,19 +226,12 @@ class ConfigSuperclass:
             serialised = str(value)
 
         elif isinstance(value, str):
-            if self._needs_triple_quotes(value):
-                escaped: str = value.replace('"""', '\\"""')
-                serialised = (
-                    '"""\n' + textwrap.indent(escaped, "    ") + '\n"""'
-                )
-            else:
-                serialised = f'"{value}"'
+            serialised = self._serialise_string(value)
 
-        # Must be ManifestZipStructure instance
-        elif not value:
+        elif isinstance(value, _CustomDictStructure) and not value:
             serialised = "{ }"
 
-        else:
+        elif isinstance(value, _CustomDictStructure):
             parts: list[str] = []
             for attribute in fields(value):
                 key: str = (attribute_name := attribute.name)
@@ -241,6 +248,13 @@ class ConfigSuperclass:
                 )
 
             serialised = "{ " + ", ".join(parts) + " }"
+
+        else:
+            _serialised_str_list: list[str] = [
+                self._serialise_string(entry) for entry in value
+            ]
+
+            serialised = "[\n  " + ",\n  ".join(_serialised_str_list) + ",\n]"
 
         return serialised
 
@@ -307,6 +321,21 @@ class Sanity(ConfigSuperclass):
 
     # ==== Remote Manifest Location Attributes ====
     expected_remote_lang_dir: str = "/common/destiny_content/sqlite/"
+    expected_bungie_response_data_fields: tuple[
+        str,
+        str,
+        str,
+        str,
+        str,
+        str,
+    ] = (
+        "ErrorCode",
+        "ThrottleSeconds",
+        "ErrorStatus",
+        "Message",
+        "MessageData",
+        "Response",
+    )
 
     # ==== Post-Initialisation ====
     def __post_init__(self) -> None:
