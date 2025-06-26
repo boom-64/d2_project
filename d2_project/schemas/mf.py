@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
+import logging
 from dataclasses import dataclass, fields
-from typing import TYPE_CHECKING
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 # ==== Local Modules ====
 import d2_project.config.config as d2_project_config
@@ -15,22 +17,28 @@ import d2_project.core.validators as d2_project_validators
 import d2_project.schemas.general as general_schemas
 
 # ==== Type Checking ====
-
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any
 
     from requests.models import Response
 
+# ==== Logging Config ====
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+_logger = logging.getLogger(__name__)
+
 # ==== Local Variables ====
-_bungie_response_data_attrs_conversion = {
-    "error_code": "ErrorCode",
-    "throttle_seconds": "ThrottleSeconds",
-    "error_status": "ErrorStatus",
-    "message": "Message",
-    "message_data": "MessageData",
-    "response": "Response",
+_expected_bungie_response_data_fields = {
+    "ErrorCode",
+    "ThrottleSeconds",
+    "ErrorStatus",
+    "Message",
+    "MessageData",
+    "Response",
 }
+T = TypeVar("T")
 
 # ==== Classes ===
 
@@ -54,30 +62,58 @@ class BungieResponseData:
 
     raw_data: Response
 
-    def __post_init__(self) -> None:
-        """Initialize BungieResponseData by parsing and validating response.
+    class BungieResponseField[T]:
+        """Class for BungieResponseData fields."""
 
-        Raises:
-            d2_project_errors.UnexpectedBungieResponseFieldError: If unexpected
-                fields are present in the response.
-            d2_project_errors.MissingBungieResponseFieldError: If an expected
-                field is missing from the response.
+        def __init__(self, field_name: str, return_type: type[T]) -> None:
+            """Initialise class."""
+            self.field_name: str = field_name
+            self.return_type: type[T] = return_type
 
-        """
-        try:
-            json_data: dict[str, Any] = self._raw_data_as_json
-
-            if diff := set(json_data) - set(
-                _bungie_response_data_attrs_conversion.values(),
-            ):
-                raise d2_project_errors.UnexpectedBungieResponseFieldError(
-                    extra_components=diff,
-                    received_data=json_data,
+        def __get__(
+            self,
+            obj: BungieResponseData | None,
+            objtype: type[BungieResponseData] | None = None,
+        ) -> T:
+            """Get dunder method."""
+            if obj is None:
+                return self  # type: ignore[reportReturnType]
+            try:
+                return cast("T", obj.raw_data_as_json[self.field_name])
+            except KeyError:
+                _logger.exception(
+                    "Missing field '%s' in Bungie response.",
+                    self.field_name,
                 )
+                raise
 
-        except KeyError as e:
-            raise d2_project_errors.MissingBungieResponseFieldError(e) from e
+    error_code = BungieResponseField(
+        "ErrorCode",
+        int,
+    )
+    throttle_seconds = BungieResponseField(
+        "ThrottleSeconds",
+        int,
+    )
+    error_status = BungieResponseField(
+        "ErrorStatus",
+        str,
+    )
+    message = BungieResponseField(
+        "Message",
+        str,
+    )
+    message_data = BungieResponseField(
+        "MessageData",
+        dict[str, Any],
+    )
+    response = BungieResponseField(
+        "Response",
+        dict[str, Any],
+    )
 
+    def __post_init__(self) -> None:
+        """Post-initalisation tasks, specifically handling error_code."""
         self._handle_error_code()
 
     def _handle_error_code(self) -> None:
@@ -88,48 +124,34 @@ class BungieResponseData:
             self.APIError: For other unexpected Bungie API errors.
 
         """
-        if self.error_code != 1:
+        if (error_code := self.error_code) != 1:
             if self.error_code in (2101, 2102):
-                raise d2_project_errors.APIPermissionError(
-                    error_code=self.error_code,
-                    error_message=self.message,
+                _logger.error(
+                    "Issue with the API key. Error code: %s, error message: "
+                    "'%s'",
+                    error_code,
+                    self.message,
                 )
-            raise d2_project_errors.UnknownAPIError(response_data=self)
+                raise PermissionError
+            _logger.error(
+                "Unknown Bungie API error. Error code: %s, Raw message data as"
+                " json: %s.",
+                error_code,
+                self.raw_data_as_json,
+            )
+            raise ValueError
 
-    @property
-    def _raw_data_as_json(self) -> dict[str, Any]:
+    @cached_property
+    def raw_data_as_json(self) -> dict[str, Any]:
         """Convert raw data to dict."""
-        return self.raw_data.json()
-
-    @property
-    def error_code(self) -> int:
-        """Bungie error code."""
-        return self._raw_data_as_json["ErrorCode"]
-
-    @property
-    def throttle_seconds(self) -> int:
-        """Throttle seconds from Bungie."""
-        return self._raw_data_as_json["ThrottleSeconds"]
-
-    @property
-    def error_status(self) -> str:
-        """Error status from Bungie."""
-        return self._raw_data_as_json["ErrorStatus"]
-
-    @property
-    def message(self) -> str:
-        """Message from Bungie."""
-        return self._raw_data_as_json["Message"]
-
-    @property
-    def message_data(self) -> dict[str, Any]:
-        """Message data from Bungie."""
-        return self._raw_data_as_json["MessageData"]
-
-    @property
-    def response(self) -> dict[str, Any]:
-        """Response from Bungie."""
-        return self._raw_data_as_json["Response"]
+        json_data: dict[str, Any] = self.raw_data.json()
+        if diff := set(json_data) - _expected_bungie_response_data_fields:
+            _logger.exception(
+                "Unexpected components in response: %s",
+                ", ".join(f"{k}={json_data[k]!r}" for k in diff),
+            )
+            raise ValueError
+        return json_data
 
 
 @dataclass(frozen=True)
