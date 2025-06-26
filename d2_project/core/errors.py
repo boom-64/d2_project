@@ -12,7 +12,6 @@ import iso639
 # ==== Type Checking ====
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any
 
     import d2_project.schemas.mf as mf_schemas
 
@@ -214,31 +213,6 @@ class InvalidURLError(ValueError):
         self.message: str = message
 
 
-class APIPermissionError(PermissionError):
-    """Custom exception for known API errors.
-
-    Attributes:
-        error_code (int): The error code returned by Bungie.
-        error_message (str): The message received from Bungie.
-        message (str): The message passed to PermissionError.
-
-    """
-
-    def __init__(self, *, error_code: int, error_message: str) -> None:
-        """Initialise class."""
-        self.error_code: int = error_code
-        self.error_message: str = error_message
-
-        message: str = (
-            f"Issue with the API key. Error code: {error_code}, error "
-            f"message: '{error_message}'."
-        )
-
-        super().__init__(message)
-
-        self.message: str = message
-
-
 class UnknownAPIError(Exception):
     """Exception raised for errors returned by the Bungie API.
 
@@ -338,32 +312,6 @@ class ManifestLangUnavailableError(ValueError):
         message: str = (
             f"Language {desired_mf_lang.name} unavailable. Available "
             f"languages: {', '.join(available_lang_names)}."
-        )
-        super().__init__(message)
-        self.message: str = message
-
-
-class UnexpectedBungieResponseFieldError(ValueError):
-    """Custom exception for when unexpected field arrives in Bungie response.
-
-    Attributes:
-        extra_components (set[str]): Set of extra components received.
-        received_data (dict[str, Any]): Received data.
-        message (str): Message passed to ValueError.
-
-    """
-
-    def __init__(
-        self,
-        *,
-        extra_components: set[str],
-        received_data: dict[str, Any],
-    ) -> None:
-        """Initialise class."""
-        self.extra_componets: set[str] = extra_components
-        self.received_data: dict[str, Any] = received_data
-        message: str = "Unexpected components in response: " + ", ".join(
-            f"{k}={received_data[k]!r}" for k in extra_components
         )
         super().__init__(message)
         self.message: str = message

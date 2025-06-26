@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
+import logging
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -11,7 +12,6 @@ from typing import TYPE_CHECKING
 import requests
 
 # ==== Local Modules ====
-import d2_project.core.errors as d2_project_errors
 import d2_project.core.utils.general as general_utils
 
 # ==== Type Checking ====
@@ -20,6 +20,14 @@ if TYPE_CHECKING:
     from typing import IO
 
     from requests.models import Response
+
+# ==== Logging Config ====
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+_logger = logging.getLogger(__name__)
 
 # ==== Functions ====
 
@@ -42,7 +50,6 @@ def request_bungie(
 
     Raises:
         ConnectionError: If the HTTP request fails (non-2xx status).
-        ValueError: If passed URL is invalid or if response parsing fails.
 
     Returns:
         BungieResponseData: Parsed JSON response from Bungie.
@@ -53,10 +60,12 @@ def request_bungie(
     response = requests.get(url, headers=headers, timeout=(3, 5))
 
     if not response.ok:
-        raise d2_project_errors.BungieConnectionError(
-            status_code=response.status_code,
-            reason=response.reason,
+        _logger.exception(
+            "Request to Bungie failed with status %s: %s.",
+            response.status_code,
+            response.reason,
         )
+        raise ConnectionError
 
     return response
 
@@ -103,18 +112,17 @@ def dl_bungie_content(
             else:
                 file.write(response.content)
 
-    except requests.RequestException as e:
-        raise d2_project_errors.DownloadError(
-            url=url,
-            stream=stream,
-            original_exception=e,
-        ) from e
+    except requests.RequestException:
+        _logger.exception(
+            "Failed to download content from %s (stream=%s).",
+            url,
+            stream,
+        )
+        raise
 
-    except OSError as e:
-        raise d2_project_errors.FileWriteError(
-            file=file_path,
-            original_exception=e,
-        ) from e
+    except OSError:
+        _logger.exception("Error writing file %s", file_path.resolve())
+        raise
 
     else:
         return True

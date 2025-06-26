@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
+import logging
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -10,12 +11,17 @@ from typing import TYPE_CHECKING
 # ==== Non-Standard Libraries ====
 import validators
 
-# ==== Local Modules ====
-import d2_project.core.errors as d2_project_errors
-
 # ==== Type Checking ====
 if TYPE_CHECKING:
     from pathlib import Path
+
+# ==== Logging Config ====
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+_logger = logging.getLogger(__name__)
 
 
 # ==== String Patterns ====
@@ -79,13 +85,25 @@ def expected_entry_count(
 
     """
     # Raise if expected is negative or actual != expected
-    if expected < 0 or actual != expected:
-        raise d2_project_errors.UnxpectedCountError(
-            entry_type=entry_type,
-            expected=expected,
-            actual=actual,
-            entry_source=entry_source,
+    if expected < 0:
+        _logger.exception(
+            "Expected '%s' count = %s: cannot have negative number of '%s's in"
+            " archive.",
+            entry_type,
+            expected,
+            entry_type,
         )
+        raise ValueError
+
+    if actual != expected:
+        _logger.exception(
+            "Unexpected '%s' count in '%s': expected %s, found %s.",
+            entry_type,
+            entry_source,
+            expected,
+            actual,
+        )
+        raise ValueError
 
 
 def str_matches_pattern(*, value: str, pattern: str, pattern_for: str) -> bool:
@@ -97,16 +115,18 @@ def str_matches_pattern(*, value: str, pattern: str, pattern_for: str) -> bool:
         pattern_for (str): Short description of pattern purpose.
 
     Raises:
-        d2_project_errors.PatternMismatchError: If pattern match fails.
+        ValueError: If pattern match fails.
 
     """
-    does_match: bool = False
+    does_match: bool
     if not (does_match := bool(re.fullmatch(pattern, value))):
-        raise d2_project_errors.PatternMismatchError(
-            value=value,
-            pattern=pattern,
-            pattern_for=pattern_for,
+        _logger.exception(
+            "Value %s not a valid %s: Expected pattern: %s.",
+            value,
+            pattern,
+            pattern_for,
         )
+        raise ValueError
     return does_match
 
 
@@ -121,7 +141,11 @@ def entry_is_file(path: Path) -> None:
 
     """
     if not path.is_file():
-        raise d2_project_errors.IsNotFileError(path)
+        _logger.exception(
+            "Passed path '%s' must refer to a file.",
+            path.resolve(),
+        )
+        raise ValueError
 
 
 def str_is_valid_url(value: str) -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # ==== Standard Libraries ====
 import hashlib
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
@@ -12,7 +13,6 @@ from urllib.parse import urljoin, urlparse
 import validators
 
 # ==== Local Libraries ====
-import d2_project.core.errors as d2_project_errors
 import d2_project.core.validators as d2_project_validators
 
 # ==== Type Checking ====
@@ -20,6 +20,14 @@ import d2_project.core.validators as d2_project_validators
 if TYPE_CHECKING:
     from pathlib import Path
     from urllib.parse import ParseResult
+
+# ==== Logging Config ====
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+_logger = logging.getLogger(__name__)
 
 # ==== Classes ====
 
@@ -173,7 +181,8 @@ class ParsedURL:
         full_url = full_url.strip().rstrip("/")
 
         if not validators.url(full_url):
-            raise d2_project_errors.InvalidURLError(full_url)
+            _logger.exception("Passed URL '%s' is an invalid URL.", full_url)
+            raise ValueError
 
         parsed_url: ParseResult = urlparse(full_url)
 
@@ -211,6 +220,10 @@ class ParsedURL:
         full_path = parsed_url.path
 
         if not validators.url(computed_url):
-            raise d2_project_errors.InvalidURLError(computed_url)
+            _logger.exception(
+                "Passed URL '%s' is an invalid URL.",
+                computed_url,
+            )
+            raise ValueError
 
         return cls(url=computed_url, base_url=cleaned_base_url, path=full_path)
