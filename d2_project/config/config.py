@@ -447,10 +447,8 @@ class Settings(ConfigSuperclass):
     force_update: bool = True
 
     # ==== Local Filesystem Attributes ====
-    _api_key_path_str: str = str(
-        Path(__file__).resolve().parents[1] / "api_key.toml",
-    )
-    _mf_dir_path: str = str(Path(__file__).resolve().parents[1] / "manifest")
+    _api_key_path_str: str = "~/d2_project/d2_project/api_key.toml"
+    _mf_dir_path: str = "~/d2_project/d2_project/manifest"
     mf_bak_ext: str = ".bak"
 
     # ==== Post-Initialisation ====
