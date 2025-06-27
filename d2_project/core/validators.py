@@ -11,6 +11,9 @@ from typing import TYPE_CHECKING
 # ==== Non-Standard Libraries ====
 import validators
 
+# ==== Local Modules ====
+import d2_project.core.errors as d2_project_errors
+
 # ==== Type Checking ====
 if TYPE_CHECKING:
     from pathlib import Path
@@ -126,7 +129,11 @@ def str_matches_pattern(*, value: str, pattern: str, pattern_for: str) -> bool:
             pattern,
             pattern_for,
         )
-        raise ValueError
+        raise d2_project_errors.PatternMismatchError(
+            value=value,
+            pattern=pattern,
+            pattern_for=pattern_for,
+        )
     return does_match
 
 
