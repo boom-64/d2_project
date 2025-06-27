@@ -79,11 +79,11 @@ class ConfigSuperclass:
     as from_toml().
     """
 
+    exclude_fields_from_toml: tuple[str, ...] = ()
+
     def regenerate_toml(
         self,
         path: Path,
-        *,
-        exclude_fields: set[str] | None = None,
     ) -> None:
         """Regenerate TOML file from class attribute defaults.
 
@@ -102,7 +102,13 @@ class ConfigSuperclass:
         """
         with Path.open(path, "w", encoding="utf-8") as toml_open:
             for field in fields(self):
-                if exclude_fields is not None and field.name in exclude_fields:
+                exclude_fields_from_toml: tuple[str, ...] = (
+                    self.exclude_fields_from_toml
+                )
+                if (
+                    exclude_fields_from_toml
+                    and field.name in exclude_fields_from_toml
+                ):
                     continue
 
                 serialised_lines: list[str] = [""]
@@ -242,9 +248,13 @@ class ConfigSuperclass:
             path (Path): Path to a configured TOML file.
 
         Returns:
-            Sanity: The usable instance of Sanity.
+            SettingsSanity: The usable instance of Settings or Sanity.
 
         """
+        if not path.is_file():
+            instance = cls()
+            instance.regenerate_toml(path)
+            return instance
         data = toml.load(path)
         dataclass_mappings: dict[
             str,
@@ -287,6 +297,10 @@ class Sanity(ConfigSuperclass):
 
     # ==== Flags ====
     strict: bool = False
+    exclude_fields_from_toml: tuple[str, ...] = (
+        "strict",
+        "exclude_fields_from_toml",
+    )
 
     # ==== Remote Manifest Location Attributes ====
     expected_remote_lang_dir: str = "/common/destiny_content/sqlite/"
@@ -426,6 +440,10 @@ class Settings(ConfigSuperclass):
 
     """
 
+    # ==== TOML-Excluded Fields ====
+    exclude_fields_from_toml: tuple[str, ...] = tuple(
+        "exclude_fields_from_toml",
+    )
     # ==== Private Manifest Filename Attributes ====
     _expected_mf_name_template_str: str = (
         "^${starts_with}[a-fA-F0-9]{32}${extension}$$"
