@@ -12,7 +12,6 @@ from __future__ import annotations
 
 # ==== Standard Library Imports ====
 import logging
-import textwrap
 from dataclasses import MISSING, dataclass, fields
 from functools import cached_property
 from pathlib import Path
@@ -144,26 +143,24 @@ class ConfigSuperclass:
             return False
 
     def _serialise_string(self, value: str) -> str:
-        needs_triple_quotes: bool
-        needs_triple_quotes_pattern: d2_project_validators.ComparePattern = (
+        needs_triple_quotes_pattern = (
             d2_project_validators.toml_needs_triple_quotes_pattern
         )
+
         try:
-            needs_triple_quotes = d2_project_validators.str_matches_pattern(
+            d2_project_validators.str_matches_pattern(
                 value=value,
                 pattern=needs_triple_quotes_pattern.pattern,
                 pattern_for=needs_triple_quotes_pattern.pattern_for,
                 log_func=None,
             )
-        except d2_project_errors.PatternMismatchError:
-            needs_triple_quotes = False
 
-        if needs_triple_quotes:
-            escaped: str = value.replace('"""', '\\"""')
-            serialised = '"""\n' + textwrap.indent(escaped, "    ") + '\n"""'
-        else:
-            serialised = f'"{value}"'
-        return serialised
+        except d2_project_errors.PatternMismatchError:
+            return f'"{value}"'
+
+        escaped = value.replace('"""', '\\"""')
+        indented = "\n".join("    " + line for line in escaped.splitlines())
+        return '"""\n' + indented + '\n"""'
 
     def _toml_serialise_value(self, value: TomlValue) -> str:
         """Serialise value for use in TOML file.

@@ -35,9 +35,8 @@ _logger = logging.getLogger(__name__)
 # ==== Local Variables ====
 T = TypeVar("T")
 
+
 # ==== Classes ===
-
-
 @dataclass(frozen=True, init=False)
 class BungieResponseData:
     """Class for handling Bungie response data.
