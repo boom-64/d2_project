@@ -1,2 +1,2 @@
 # d2_project
-hello world!
+hello world! this is just a project for me to use as an aide to help me to learn the basics of Python. It uses Bungie's Destiny 2 manifest. I have no plans for it to do anything useful as a tool as of right now: I am only a beginner developer.
