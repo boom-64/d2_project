@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import textwrap
 from dataclasses import MISSING, dataclass, fields
+from functools import cached_property
 from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING
@@ -450,10 +451,12 @@ class Settings(ConfigSuperclass):
     mf_finder_url: str = "https://www.bungie.net/Platform/Destiny/Manifest"
     mf_loc_base_url: str = "https://www.bungie.net"
     _mf_response_structure: _ManifestResponseStructure = _mf_response_structure
-    api_key: str = "d4705221d56b4040b8c5c6b4ebd58757"
     force_update: bool = True
 
     # ==== Local Filesystem Attributes ====
+    _api_key_path_str: str = str(
+        Path(__file__).resolve().parents[2] / "api_key.toml",
+    )
     _mf_dir_path: str = str(Path(__file__).resolve().parents[1] / "manifest")
     mf_bak_ext: str = ".bak"
 
@@ -477,6 +480,26 @@ class Settings(ConfigSuperclass):
             raise NotADirectoryError
 
     # ==== Properties ====
+
+    @cached_property
+    def _api_key_path(self) -> Path:
+        """Convert _api_key_path_str to Path object."""
+        return Path(self._api_key_path_str)
+
+    @cached_property
+    def api_key(self) -> str:
+        """Return API key from _api_key_path."""
+        _api_key_path: Path = self._api_key_path
+        try:
+            data: dict[str, str] = toml.load(_api_key_path)
+            return data["api_key"]
+        except:
+            _logger.exception(
+                "Failed to read API key from path '%s'.",
+                _api_key_path,
+            )
+            raise
+
     @property
     def expected_mf_name_template(self) -> Template:
         """Converts _expected_mf_name_template_str to Template.
