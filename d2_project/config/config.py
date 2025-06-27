@@ -12,7 +12,6 @@ from __future__ import annotations
 
 # ==== Standard Library Imports ====
 import logging
-import re
 import textwrap
 from dataclasses import MISSING, dataclass, fields
 from pathlib import Path
@@ -24,6 +23,7 @@ import iso639
 import toml
 
 # ==== Local Module Imports ====
+import d2_project.core.errors as d2_project_errors
 import d2_project.core.validators as d2_project_validators
 
 # ==== Logging Config ====
@@ -190,7 +190,18 @@ class ConfigSuperclass:
             bool: Whether the string can be used as a bare key.
 
         """
-        return bool(re.fullmatch(r"[A-Za-z0-9_-]+", s))
+        try:
+            return d2_project_validators.str_matches_pattern(
+                value=s,
+                pattern=(
+                    _toml_bare_key_pattern
+                    := d2_project_validators.toml_bare_key_pattern
+                ).pattern,
+                pattern_for=_toml_bare_key_pattern.pattern_for,
+                log_func=None,
+            )
+        except d2_project_errors.PatternMismatchError:
+            return False
 
     def _serialise_string(self, value: str) -> str:
         if self._needs_triple_quotes(value):
@@ -344,6 +355,7 @@ class Sanity(ConfigSuperclass):
             value=self.expected_remote_lang_dir,
             pattern=d2_project_validators.url_path_pattern.pattern,
             pattern_for=d2_project_validators.url_path_pattern.pattern_for,
+            log_func=_logger.exception,
         )
 
     # ==== Methods ====
@@ -449,6 +461,7 @@ class Settings(ConfigSuperclass):
                 value=suffix,
                 pattern=d2_project_validators.file_suffix_pattern.pattern,
                 pattern_for=d2_project_validators.file_suffix_pattern.pattern_for,
+                log_func=_logger.exception,
             )
         for url in (self.mf_finder_url, self.mf_loc_base_url):
             d2_project_validators.str_is_valid_url(url)

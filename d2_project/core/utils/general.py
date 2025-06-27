@@ -274,6 +274,7 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
         value=suffix,
         pattern=d2_project_validators.file_suffix_pattern.pattern,
         pattern_for=d2_project_validators.file_suffix_pattern.pattern_for,
+        log_func=_logger.exception,
     )
 
     new_path: Path = path.with_name(path.name + suffix)

@@ -16,6 +16,7 @@ import d2_project.core.errors as d2_project_errors
 
 # ==== Type Checking ====
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 # ==== Logging Config ====
@@ -55,6 +56,11 @@ file_suffix_pattern: _ComparePattern = _ComparePattern(
 url_path_pattern: _ComparePattern = _ComparePattern(
     pattern="^/?(?:[A-Za-z0-9._~!$&'()*+,;=:@%-]+/)*[A-Za-z0-9._~!$&'()*+,;=:@%-]*/?$",
     pattern_for="URL path",
+)
+
+toml_bare_key_pattern: _ComparePattern = _ComparePattern(
+    pattern=r"[A-Za-z0-9_-]+",
+    pattern_for="TOML bare key",
 )
 
 
@@ -109,32 +115,44 @@ def expected_entry_count(
         raise ValueError
 
 
-def str_matches_pattern(*, value: str, pattern: str, pattern_for: str) -> bool:
+def str_matches_pattern(
+    *,
+    value: str,
+    pattern: str,
+    pattern_for: str,
+    log_func: Callable[..., None] | None = None,
+) -> bool:
     """Validate string-pattern match.
 
     Args:
         value (str): Value to check.
         pattern (str): Pattern to check against.
         pattern_for (str): Short description of pattern purpose.
+        log_func (Callable[..., None] | None): Logging function (defaults to
+            None).
+
+    Returns:
+        bool: Returns True if match success.
 
     Raises:
-        ValueError: If pattern match fails.
+        d2_project_errors.PatternMismatchError: If pattern match fails
 
     """
-    does_match: bool
-    if not (does_match := bool(re.fullmatch(pattern, value))):
-        _logger.exception(
+    if re.fullmatch(pattern, value):
+        return True
+
+    if log_func is not None:
+        log_func(
             "Value %s not a valid %s: Expected pattern: %s.",
             value,
             pattern,
             pattern_for,
         )
-        raise d2_project_errors.PatternMismatchError(
-            value=value,
-            pattern=pattern,
-            pattern_for=pattern_for,
-        )
-    return does_match
+    raise d2_project_errors.PatternMismatchError(
+        value=value,
+        pattern=pattern,
+        pattern_for=pattern_for,
+    )
 
 
 def entry_is_file(path: Path) -> None:

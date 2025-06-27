@@ -173,6 +173,7 @@ class ManifestLocationData(BungieResponseData):
             value=self.remote_mf_name,
             pattern=d2_project_config.settings.expected_mf_name_regex,
             pattern_for="manifest file",
+            log_func=_logger.exception,
         )
 
     def _get_delved_remote_mf_langs(self) -> dict[str, str]:
@@ -321,6 +322,7 @@ class InstalledManifestData:
                     value=self.installed_mf_path.name,
                     pattern=d2_project_config.settings.expected_mf_name_regex,
                     pattern_for="(expected) manifest name",
+                    log_func=_logger.exception,
                 )
             except d2_project_errors.PatternMismatchError:
                 return False
@@ -350,6 +352,7 @@ class InstalledManifestData:
                 value=expected_checksum_str,
                 pattern=d2_project_validators.lc_checksum_pattern.pattern,
                 pattern_for=d2_project_validators.lc_checksum_pattern.pattern_for,
+                log_func=_logger.exception,
             )
 
             expected_checksum = general_schemas.MD5Checksum(

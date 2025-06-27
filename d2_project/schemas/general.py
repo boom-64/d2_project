@@ -61,6 +61,7 @@ class MD5Checksum:
                 value=lc_val,
                 pattern=d2_project_validators.lc_checksum_pattern.pattern,
                 pattern_for=d2_project_validators.lc_checksum_pattern.pattern_for,
+                log_func=_logger.exception,
             )
 
         object.__setattr__(self, "val", lc_val)
