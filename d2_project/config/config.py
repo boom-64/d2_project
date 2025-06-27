@@ -51,49 +51,6 @@ class _CustomDictStructure:
         return {f.name: getattr(self, f.name) for f in fields(self)}
 
 
-@dataclass(frozen=True)
-class _ManifestZipStructure(_CustomDictStructure):
-    """Dataclass for manifest zip structure.
-
-    Attributes:
-        expected_file_count (int): Expected number of files in the archive.
-        expected_dir_count (int): Expected number of directories in the
-            archive.
-
-    Methods:
-        to_dict: Converts _ManifestZipStructure object to dict.
-
-    """
-
-    expected_file_count: int
-    expected_dir_count: int
-
-
-@dataclass(frozen=True)
-class _ManifestResponseStructure(_CustomDictStructure):
-    """Dataclass for manifest response structure.
-
-    Attributes:
-        keyX: Dict keys parents to children
-
-    """
-
-    key_0: str
-    key_1: str
-
-
-_manifest_zip_structure: _ManifestZipStructure = _ManifestZipStructure(
-    expected_file_count=1,
-    expected_dir_count=0,
-)
-
-_mf_response_structure: _ManifestResponseStructure = (
-    _ManifestResponseStructure(
-        key_0="mobileWorldContentPaths",
-        key_1="$desired_mf_lang",
-    )
-)
-
 # ==== Type Checking ====
 if TYPE_CHECKING:
     # ==== Standard Library Imports ====
@@ -400,6 +357,50 @@ class Sanity(ConfigSuperclass):
 
 
 @dataclass(frozen=True)
+class _ManifestZipStructure(_CustomDictStructure):
+    """Dataclass for manifest zip structure.
+
+    Attributes:
+        expected_file_count (int): Expected number of files in the archive.
+        expected_dir_count (int): Expected number of directories in the
+            archive.
+
+    Methods:
+        to_dict: Converts _ManifestZipStructure object to dict.
+
+    """
+
+    expected_file_count: int
+    expected_dir_count: int
+
+
+@dataclass(frozen=True)
+class _ManifestResponseStructure(_CustomDictStructure):
+    """Dataclass for manifest response structure.
+
+    Attributes:
+        keyX: Dict keys parents to children
+
+    """
+
+    key_0: str
+    key_1: str
+
+
+_default_manifest_zip_structure: _ManifestZipStructure = _ManifestZipStructure(
+    expected_file_count=1,
+    expected_dir_count=0,
+)
+
+_default_mf_response_structure: _ManifestResponseStructure = (
+    _ManifestResponseStructure(
+        key_0="mobileWorldContentPaths",
+        key_1="$desired_mf_lang",
+    )
+)
+
+
+@dataclass(frozen=True)
 class Settings(ConfigSuperclass):
     """Class for generating 'settings' object for sanity checking.
 
@@ -445,12 +446,14 @@ class Settings(ConfigSuperclass):
     # ==== Public Manifest Filename Attributes
     mf_extension: str = ".content"
     mf_starts_with: str = "world_sql_content_"
-    mf_zip_structure: _ManifestZipStructure = _manifest_zip_structure
+    mf_zip_structure: _ManifestZipStructure = _default_manifest_zip_structure
 
     # ==== Bungie Request Attributes ====
     mf_finder_url: str = "https://www.bungie.net/Platform/Destiny/Manifest"
     mf_loc_base_url: str = "https://www.bungie.net"
-    _mf_response_structure: _ManifestResponseStructure = _mf_response_structure
+    _mf_response_structure: _ManifestResponseStructure = (
+        _default_mf_response_structure
+    )
     force_update: bool = True
 
     # ==== Local Filesystem Attributes ====
