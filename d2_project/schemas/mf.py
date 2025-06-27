@@ -289,33 +289,33 @@ class InstalledManifestData:
             None: If no installed manifest exists.
 
         """
-        mf_candidates: list[Path] = []
-        for entry in (
-            mf_dir_path := d2_project_config.settings.mf_dir_path
-        ).iterdir():
+        _mf_dir_path: Path = d2_project_config.settings.mf_dir_path
+
+        _mf_candidates: list[Path] = []
+        for entry in _mf_dir_path.iterdir():
             if (
                 entry.suffix == (d2_project_config.settings.mf_extension)
                 and entry.is_file()
             ):
-                mf_candidates.append(entry)
+                _mf_candidates.append(entry)
 
                 # Raise early once more than one candidate found
-                if len(mf_candidates) > 1:
+                if len(_mf_candidates) > 1:
                     _logger.exception(
                         "Directory '%s contains too many manifest candidates, "
                         "including both '%s' and '%s'.",
-                        mf_dir_path,
-                        mf_candidates[0].name,
-                        mf_candidates[1].name,
+                        _mf_dir_path,
+                        _mf_candidates[0].name,
+                        _mf_candidates[1].name,
                     )
                     raise FileExistsError
 
         # Returns None if no candidate found
-        if not mf_candidates:
+        if not _mf_candidates:
             return None
 
-        # Must have len(mf_candidates) == 1
-        return mf_candidates[0]
+        # Must have len(_mf_candidates) == 1
+        return _mf_candidates[0]
 
     @property
     def filename_pattern_expected(self) -> bool | None:
