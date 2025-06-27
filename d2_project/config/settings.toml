@@ -7,6 +7,6 @@
 # mf_loc_base_url = "https://www.bungie.net"
 # _mf_response_structure = { key_0 = "mobileWorldContentPaths", key_1 = "$desired_mf_lang" }
 # force_update = true
-# _api_key_path_str = "~/d2_project/d2_project/api_key.toml"
-# _mf_dir_path = "~/d2_project/d2_project/manifest"
+# _api_key_path_str = "Users/oranqe/d2_project/d2_project/api_key.toml"
+# _mf_dir_path = "Users/oranqe/d2_project/d2_project/manifest"
 # mf_bak_ext = ".bak"
