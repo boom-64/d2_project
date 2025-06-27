@@ -455,7 +455,7 @@ class Settings(ConfigSuperclass):
 
     # ==== Local Filesystem Attributes ====
     _api_key_path_str: str = str(
-        Path(__file__).resolve().parents[2] / "api_key.toml",
+        Path(__file__).resolve().parents[1] / "api_key.toml",
     )
     _mf_dir_path: str = str(Path(__file__).resolve().parents[1] / "manifest")
     mf_bak_ext: str = ".bak"

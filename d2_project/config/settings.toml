@@ -1,5 +1,5 @@
 # _expected_mf_name_template_str = "^${starts_with}[a-fA-F0-9]{32}${extension}$$"
-desired_mf_lang = "hy"
+# desired_mf_lang = "hy"
 # mf_extension = ".content"
 # mf_starts_with = "world_sql_content_"
 # mf_zip_structure = { expected_file_count = 1, expected_dir_count = 0 }
