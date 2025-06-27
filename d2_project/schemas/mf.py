@@ -4,13 +4,15 @@ from __future__ import annotations
 
 # ==== Standard Libraries ====
 import logging
-from dataclasses import dataclass, fields
+from dataclasses import Field, dataclass, fields
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
+# ==== Non-Standard Libraries ====
+import iso639
+
 # ==== Local Modules ====
 import d2_project.config.config as d2_project_config
-import d2_project.core.errors as d2_project_errors
 import d2_project.core.utils.general as general_utils
 import d2_project.core.utils.mf as mf_utils
 import d2_project.core.validators as d2_project_validators
@@ -174,24 +176,30 @@ class ManifestLocationData(BungieResponseData):
 
     def _get_delved_remote_mf_langs(self) -> dict[str, str]:
         response_delver: dict[str, Any] = self.response
-
+        mf_response_structure = (
+            d2_project_config.settings.mf_response_structure
+        )
+        key = cast("Field[Any]", None)
         try:
-            for key in (
-                fields(
-                    d2_project_config.settings.mf_response_structure,
-                )
-            )[:-1]:
+            for key in (fields(mf_response_structure))[:-1]:
                 response_delver = response_delver[
                     getattr(
-                        d2_project_config.settings.mf_response_structure,
+                        mf_response_structure,
                         key.name,
                     )
                 ]
 
-        except KeyError as e:
-            raise d2_project_errors.MissingBungieResponseFieldError(
-                original_key_error=e,
-            ) from e
+        except KeyError:
+            missing_field_value: str = (
+                getattr(mf_response_structure, key.name)
+                if key
+                else "<unknown>"
+            )
+            _logger.exception(
+                "Missing required field in response: %s.",
+                missing_field_value,
+            )
+            raise
         return response_delver
 
     @property
@@ -200,14 +208,22 @@ class ManifestLocationData(BungieResponseData):
         delved_remote_mf_path = (
             delved_langs := self._get_delved_remote_mf_langs()
         ).get(
-            d2_project_config.settings.desired_mf_lang.part1
+            (
+                desired_mf_lang := d2_project_config.settings.desired_mf_lang
+            ).part1
             or "MISSING_ISO_639_PART_1",
         )
         if delved_remote_mf_path is None:
-            raise d2_project_errors.ManifestLangUnavailableError(
-                available_langs=list(delved_langs.keys()),
-                desired_mf_lang=d2_project_config.settings.desired_mf_lang,
+            available_lang_names: list[str] = [
+                iso639.Language.match(code.split("-")[0]).name
+                for code in delved_langs
+            ]
+            _logger.exception(
+                "Language %s unavailable. Available languages: %s.",
+                desired_mf_lang.name,
+                ", ".join(available_lang_names),
             )
+            raise ValueError
 
         return delved_remote_mf_path
 
@@ -261,7 +277,9 @@ class InstalledManifestData:
 
         """
         mf_candidates: list[Path] = []
-        for entry in d2_project_config.settings.mf_dir_path.iterdir():
+        for entry in (
+            mf_dir_path := d2_project_config.settings.mf_dir_path
+        ).iterdir():
             if (
                 entry.suffix == (d2_project_config.settings.mf_extension)
                 and entry.is_file()
@@ -270,10 +288,14 @@ class InstalledManifestData:
 
                 # Raise early once more than one candidate found
                 if len(mf_candidates) > 1:
-                    raise d2_project_errors.TooManyManifestsError(
-                        mf_dir_path=d2_project_config.settings.mf_dir_path,
-                        mf_candidates=mf_candidates,
+                    _logger.exception(
+                        "Directory '%s contains too many manifest candidates, "
+                        "including both '%s' and '%s'.",
+                        mf_dir_path,
+                        mf_candidates[0].name,
+                        mf_candidates[1].name,
                     )
+                    raise FileExistsError
 
         # Returns None if no candidate found
         if not mf_candidates:
@@ -299,7 +321,7 @@ class InstalledManifestData:
                     pattern=d2_project_config.settings.expected_mf_name_regex,
                     pattern_for="(expected) manifest name",
                 )
-            except d2_project_errors.PatternMismatchError:
+            except ValueError:
                 return False
         return None
 
