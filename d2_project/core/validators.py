@@ -28,7 +28,7 @@ logging.basicConfig(
 _logger = logging.getLogger(__name__)
 
 
-# ==== String Patterns ====
+# ==== ComparePatterns ====
 @dataclass
 class ComparePattern:
     """Class for comparing patterns.
