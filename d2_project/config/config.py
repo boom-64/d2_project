@@ -27,6 +27,8 @@ import d2_project.core.validators as d2_project_validators
 
 # ==== Logging Config ====
 logging.basicConfig(
+    filename="app.log",
+    filemode="a",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
