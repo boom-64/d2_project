@@ -19,7 +19,6 @@ from string import Template
 from typing import TYPE_CHECKING
 
 # ==== Non-Standard Library Imports ====
-import iso639
 import toml
 
 # ==== Local Module Imports ====
@@ -191,12 +190,12 @@ class ConfigSuperclass:
 
         """
         try:
+            _toml_bare_key_pattern: d2_project_validators.ComparePattern = (
+                d2_project_validators.toml_bare_key_pattern
+            )
             return d2_project_validators.str_matches_pattern(
                 value=s,
-                pattern=(
-                    _toml_bare_key_pattern
-                    := d2_project_validators.toml_bare_key_pattern
-                ).pattern,
+                pattern=_toml_bare_key_pattern.pattern,
                 pattern_for=_toml_bare_key_pattern.pattern_for,
                 log_func=None,
             )
@@ -244,16 +243,21 @@ class ConfigSuperclass:
 
         elif isinstance(value, _CustomDictStructure):
             parts: list[str] = []
+
             for attribute in fields(value):
-                key: str = (attribute_name := attribute.name)
+                attribute_name: str = attribute.name
+
+                key: str = attribute_name
                 if not self._is_bare_key(attribute_name):
                     key = f'"{attribute_name}"'
+
                 serialised_value_str: str = self._toml_serialise_value(
                     getattr(
                         value,
                         attribute.name,
                     ),
                 )
+
                 parts.append(
                     f"{key} = {serialised_value_str}",
                 )
@@ -435,7 +439,7 @@ class Settings(ConfigSuperclass):
     _expected_mf_name_template_str: str = (
         "^${starts_with}[a-fA-F0-9]{32}${extension}$$"
     )
-    _desired_mf_lang: str = "en"
+    desired_mf_lang: str = "en"
 
     # ==== Public Manifest Filename Attributes
     mf_extension: str = ".content"
@@ -504,10 +508,12 @@ class Settings(ConfigSuperclass):
             extension=self.mf_extension,
         )
 
+    """
     @property
-    def desired_mf_lang(self) -> iso639.Language:
-        """Validate _mf_lang and return iso639.Language object."""
-        return iso639.Language.match(self._desired_mf_lang)
+    def desired_mf_lang(self) -> langcodes.Language:
+        'Validate _mf_lang and return langcodes.Language object.'
+        return langcodes.get(self._desired_mf_lang)
+    """
 
     @property
     def mf_response_structure(self) -> _ManifestResponseStructure:

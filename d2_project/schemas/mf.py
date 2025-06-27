@@ -9,7 +9,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 # ==== Non-Standard Libraries ====
-import iso639
+import langcodes
 
 # ==== Local Modules ====
 import d2_project.config.config as d2_project_config
@@ -109,46 +109,51 @@ class BungieResponseData:
 
     def __post_init__(self) -> None:
         """Post-initalisation tasks, specifically handling error_code."""
-        self._handle_error_code()
+        self._handle_error_code(self.error_code)
 
-    def _handle_error_code(self) -> None:
+    def _handle_error_code(self, error_code: int) -> None:
         """Determine if the response indicates success from error_code.
 
         Raises:
             PermissionError: If the error code indicates an API key issue.
-            self.APIError: For other unexpected Bungie API errors.
+            ValueError: For other unexpected Bungie API errors.
 
         """
-        if (error_code := self.error_code) != 1:
-            if self.error_code in (2101, 2102):
-                _logger.error(
-                    "Issue with the API key. Error code: %s, error message: "
-                    "'%s'",
-                    error_code,
-                    self.message,
-                )
-                raise PermissionError
+        if error_code == 1:
+            return
+
+        if error_code in (2101, 2102):
             _logger.error(
-                "Unknown Bungie API error. Error code: %s, Raw message data as"
-                " json: %s.",
+                "Issue with the API key. Error code: %s, error message: '%s'",
                 error_code,
-                self.raw_data_as_json,
+                self.message,
             )
-            raise ValueError
+            raise PermissionError
+
+        _logger.error(
+            "Unknown Bungie API error. Error code: %s, Raw message data as"
+            " json: %s.",
+            error_code,
+            self.raw_data_as_json,
+        )
+        raise ValueError
 
     @cached_property
     def raw_data_as_json(self) -> dict[str, Any]:
         """Convert raw data to dict."""
         json_data: dict[str, Any] = self.raw_data.json()
-        if diff := set(json_data) - set(
+        diff: set[str] = set(json_data) - set(
             d2_project_config.sanity.expected_bungie_response_data_fields,
-        ):
-            _logger.exception(
-                "Unexpected components in response: %s",
-                ", ".join(f"{k}={json_data[k]!r}" for k in diff),
-            )
-            raise ValueError
-        return json_data
+        )
+
+        if not diff:
+            return json_data
+
+        _logger.exception(
+            "Unexpected components in response: %s",
+            ", ".join(f"{k}={json_data[k]!r}" for k in diff),
+        )
+        raise ValueError
 
 
 @dataclass(frozen=True)
@@ -207,27 +212,33 @@ class ManifestLocationData(BungieResponseData):
     @property
     def remote_mf_path(self) -> str:
         """Get remote manifest path."""
-        delved_remote_mf_path = (
-            delved_langs := self._get_delved_remote_mf_langs()
-        ).get(
-            (
-                desired_mf_lang := d2_project_config.settings.desired_mf_lang
-            ).part1
-            or "MISSING_ISO_639_PART_1",
-        )
-        if delved_remote_mf_path is None:
-            available_lang_names: list[str] = [
-                iso639.Language.match(code.split("-")[0]).name
-                for code in delved_langs
-            ]
-            _logger.exception(
-                "Language %s unavailable. Available languages: %s.",
-                desired_mf_lang.name,
-                ", ".join(available_lang_names),
-            )
-            raise ValueError
+        _delved_langs: dict[str, str] = self._get_delved_remote_mf_langs()
+        _desired_mf_lang: str = d2_project_config.settings.desired_mf_lang
 
-        return delved_remote_mf_path
+        _delved_remote_mf_path_key: str | None = (
+            langcodes.closest_supported_match(
+                _desired_mf_lang,
+                list(_delved_langs.keys()),
+            )
+        )
+
+        if _delved_remote_mf_path_key is not None:
+            return _delved_langs[_delved_remote_mf_path_key]
+
+        _logger.error(
+            "Manifest language '%s' (%s) currently unavailable. Available "
+            "languages: %s.",
+            _desired_mf_lang,
+            langcodes.Language.get(_desired_mf_lang).display_name(),
+            ", ".join(
+                [
+                    langcodes.Language.get(lang).display_name()
+                    for lang in _delved_langs
+                ],
+            ),
+        )
+
+        raise ValueError
 
     @property
     def remote_mf_name(self) -> str:

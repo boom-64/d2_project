@@ -30,7 +30,7 @@ _logger = logging.getLogger(__name__)
 
 # ==== String Patterns ====
 @dataclass
-class _ComparePattern:
+class ComparePattern:
     """Class for comparing patterns.
 
     Attributes:
@@ -43,22 +43,22 @@ class _ComparePattern:
     pattern_for: str
 
 
-lc_checksum_pattern: _ComparePattern = _ComparePattern(
+lc_checksum_pattern: ComparePattern = ComparePattern(
     pattern=r"^[a-f0-9]{32}$",
     pattern_for="(lowercase) checksum",
 )
 
-file_suffix_pattern: _ComparePattern = _ComparePattern(
+file_suffix_pattern: ComparePattern = ComparePattern(
     pattern=r"\.[A-Za-z0-9._-]+",
     pattern_for="file suffix",
 )
 
-url_path_pattern: _ComparePattern = _ComparePattern(
+url_path_pattern: ComparePattern = ComparePattern(
     pattern="^/?(?:[A-Za-z0-9._~!$&'()*+,;=:@%-]+/)*[A-Za-z0-9._~!$&'()*+,;=:@%-]*/?$",
     pattern_for="URL path",
 )
 
-toml_bare_key_pattern: _ComparePattern = _ComparePattern(
+toml_bare_key_pattern: ComparePattern = ComparePattern(
     pattern=r"[A-Za-z0-9_-]+",
     pattern_for="TOML bare key",
 )
