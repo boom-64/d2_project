@@ -3,8 +3,8 @@
 This module contains configuration and sanity class definitions and
 instances generated using their respective TOML files. These classes
 are also capable of regenerating the TOML files by calling
-utils.general.regenerate_toml() on a class instance which uses the class
-defaults to regenerate a TOML file.
+self.regenerate_toml() which uses the class defaults to regenerate a
+TOML file.
 """
 
 # ==== Import Annotations From __future__ ====
@@ -57,13 +57,14 @@ if TYPE_CHECKING:
     from typing import Self, TypeAlias
 
     # ==== Custom TypeAlias Import ====
+    """Values to convert to and from TOML files."""
     TomlValue: TypeAlias = (
         bool
         | Path
         | int
         | float
         | str
-        | tuple[str, str, str, str, str, str]
+        | tuple[str, ...]
         | _CustomDictStructure
     )
 
@@ -114,24 +115,6 @@ class ConfigSuperclass:
                     f"# {line}\n" for line in serialised_lines[1:]
                 )
 
-    def _needs_triple_quotes(self, s: str) -> bool:
-        """Determine whether a string needs triple quotes.
-
-        This function determines whether or not a string requires triple
-        quotes for a TOML file.
-
-        Args:
-            s (str): String to check.
-
-        Returns:
-            bool: Whether the string contains the listed special
-                characters.
-
-        """
-        special_chars: list[str] = ["\n", "\r", '"', "'"]
-
-        return any(c in s for c in special_chars)
-
     def _is_bare_key(self, s: str) -> bool:
         """Determine whether a given key string is bare for TOML file.
 
@@ -148,20 +131,34 @@ class ConfigSuperclass:
 
         """
         try:
-            _toml_bare_key_pattern: d2_project_validators.ComparePattern = (
+            toml_bare_key_pattern: d2_project_validators.ComparePattern = (
                 d2_project_validators.toml_bare_key_pattern
             )
             return d2_project_validators.str_matches_pattern(
                 value=s,
-                pattern=_toml_bare_key_pattern.pattern,
-                pattern_for=_toml_bare_key_pattern.pattern_for,
+                pattern=toml_bare_key_pattern.pattern,
+                pattern_for=toml_bare_key_pattern.pattern_for,
                 log_func=None,
             )
         except d2_project_errors.PatternMismatchError:
             return False
 
     def _serialise_string(self, value: str) -> str:
-        if self._needs_triple_quotes(value):
+        needs_triple_quotes: bool
+        needs_triple_quotes_pattern: d2_project_validators.ComparePattern = (
+            d2_project_validators.toml_needs_triple_quotes_pattern
+        )
+        try:
+            needs_triple_quotes = d2_project_validators.str_matches_pattern(
+                value=value,
+                pattern=needs_triple_quotes_pattern.pattern,
+                pattern_for=needs_triple_quotes_pattern.pattern_for,
+                log_func=None,
+            )
+        except d2_project_errors.PatternMismatchError:
+            needs_triple_quotes = False
+
+        if needs_triple_quotes:
             escaped: str = value.replace('"""', '\\"""')
             serialised = '"""\n' + textwrap.indent(escaped, "    ") + '\n"""'
         else:
@@ -294,14 +291,7 @@ class Sanity(ConfigSuperclass):
 
     # ==== Remote Manifest Location Attributes ====
     expected_remote_lang_dir: str = "/common/destiny_content/sqlite/"
-    expected_bungie_response_data_fields: tuple[
-        str,
-        str,
-        str,
-        str,
-        str,
-        str,
-    ] = (
+    expected_bungie_response_data_fields: tuple[str, ...] = (
         "ErrorCode",
         "ThrottleSeconds",
         "ErrorStatus",

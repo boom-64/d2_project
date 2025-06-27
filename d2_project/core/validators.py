@@ -63,6 +63,11 @@ toml_bare_key_pattern: ComparePattern = ComparePattern(
     pattern_for="TOML bare key",
 )
 
+toml_needs_triple_quotes_pattern: ComparePattern = ComparePattern(
+    pattern=r".*[\n\r\"'].*",
+    pattern_for="TOML triple-quotable string",
+)
+
 
 # ==== Functions ====
 def expected_entry_count(
