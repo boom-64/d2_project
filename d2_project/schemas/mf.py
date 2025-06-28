@@ -40,14 +40,12 @@ class BungieResponseData:
 
     Attributes:
         raw_data (Response): Raw data from Bungie.
-
-    Properties:
-        error_code (int): Bungie error code.
+        error_code (int): Error code from Bungie.
         throttle_seconds (int): Throttle seconds from Bungie.
-        error_status (str): Error message received.
+        error_status (str): Error status from Bungie.
         message (str): Message from Bungie.
-        message_data (dict[str, Any]): Message data received.
-        response (dict[str, Any]): Response data e.g. manifest location.
+        message_data (dict[str, Any]) Message data from Bungie.
+        response (dict[str, Any]): Response from Bungie.
 
     """
 
@@ -66,7 +64,32 @@ class BungieResponseData:
             obj: BungieResponseData | None,
             objtype: type[BungieResponseData] | None = None,
         ) -> T:
-            """Get dunder method."""
+            """Retrieve the field value from the Bungie response data.
+
+            Implements the descriptor protocol to allow access to a specific
+            field from the 'raw_data_as_json' of a 'BungieResponseData'
+            instance.
+
+            If 'obj' is 'None', returns the descriptor itself (useful for
+            class-level access).
+
+            Args:
+                obj (BungieResponseData | None): The instance of
+                    'BungieResponseData' from which to retrieve the value. If
+                    'None', the descriptor itself is returned.
+                objtype (type[BungieResponseData] | None, optional): The class
+                    type; unused but included for compliance with the
+                    descriptor protocol.
+
+            Returns:
+                T: The value of the field from 'raw_data_as_json' associated
+                with 'self.field_name'.
+
+            Raises:
+                KeyError: If the specified field name is missing in the
+                response data.
+
+            """
             if obj is None:
                 return self  # type: ignore[reportReturnType]
             try:
@@ -110,6 +133,9 @@ class BungieResponseData:
     def _handle_error_code(self, error_code: int) -> None:
         """Determine if the response indicates success from error_code.
 
+        Args:
+            error_code (int): Error code from Bungie.
+
         Raises:
             PermissionError: If the error code indicates an API key issue.
             ValueError: For other unexpected Bungie API errors.
@@ -136,7 +162,12 @@ class BungieResponseData:
 
     @cached_property
     def raw_data_as_json(self) -> dict[str, Any]:
-        """Convert raw data to dict."""
+        """Convert raw data to dict.
+
+        Returns:
+            dict[str, Any]: Parsed Response.
+
+        """
         json_data: dict[str, Any] = self.raw_data.json()
         diff: set[str] = set(json_data) - set(
             d2_project_config.sanity.expected_bungie_response_data_fields,
@@ -154,14 +185,7 @@ class BungieResponseData:
 
 @dataclass(frozen=True)
 class ManifestLocationData(BungieResponseData):
-    """Class for data pertaining to the latest manifest's location.
-
-    Properties:
-        mf_remote_path (str): Remote path to manifest.
-        mf_url (str): URL to manifest.
-        mf_name (str): Filename of manifest.
-
-    """
+    """Class for data pertaining to the latest manifest's location."""
 
     # ==== Initialisation ====
 
@@ -208,7 +232,16 @@ class ManifestLocationData(BungieResponseData):
 
     @property
     def remote_mf_path(self) -> str:
-        """Get remote manifest path."""
+        """Get remote manifest path.
+
+        Returns:
+            str: Remote manifest path.
+
+        Raises:
+            ValueError: If no match can be found for
+            'd2_project_config.settings.desired_mf_lang'.
+
+        """
         delved_langs: dict[str, str] = self._get_delved_remote_mf_langs()
         desired_mf_lang: str = d2_project_config.settings.desired_mf_lang
 
@@ -237,14 +270,24 @@ class ManifestLocationData(BungieResponseData):
 
         raise ValueError
 
-    @property
+    @cached_property
     def remote_mf_name(self) -> str:
-        """Get remote manifest name from path."""
+        """Get remote manifest name from path.
+
+        Returns:
+            str: Manifest name.
+
+        """
         return self.remote_mf_path.split("/")[-1]
 
-    @property
+    @cached_property
     def remote_mf_url(self) -> general_schemas.ParsedURL:
-        """Construct URL from path."""
+        """Construct URL from path.
+
+        Returns:
+            general_schemas.ParsedURL: Parsed URL constructed from path.
+
+        """
         return general_schemas.ParsedURL.from_base_and_path(
             base_url=d2_project_config.settings.mf_loc_base_url,
             path=self.remote_mf_path,
@@ -253,24 +296,7 @@ class ManifestLocationData(BungieResponseData):
 
 @dataclass
 class InstalledManifestData:
-    """Dataclass for installed manifest data.
-
-    Properties:
-        installed_mf_path (Path | None): Path to installed manifest if one
-            exists, else None.
-        filename_pattern_expected (bool | None): Whether or not manifest name
-            matches the expected filename pattern if manifest exists, else
-            None.
-        installed_mf_extension (str): Extension of installed manifest if one
-            exists, else None.
-        expected_checksum (schemas.general.MD5Checksum): Expected checksum from
-            manifest filename if one exists, else None.
-        computed_checksum (schemas.general.MD5Checksum): Checksum computed from
-            manifest if file exists, else None
-        checksum_match (bool): Whether expected_checksum matches
-            computed_checksum if both exist, else None.
-
-    """
+    """Dataclass for installed manifest data."""
 
     # ==== Properties ====
     @property
@@ -278,11 +304,10 @@ class InstalledManifestData:
         """Get path to installed manifest if one exists.
 
         Raises:
-            NotADirectoryError: _description_
-            FileExistsError: _description_
+            FileExistsError: If too many candidates found.
 
         Returns:
-            Path: Path to existing manifest if one exists.
+            Path: Path to existing manifest if exactly one exists.
             None: If no installed manifest exists.
 
         """
@@ -376,7 +401,7 @@ class InstalledManifestData:
         Returns:
             general_schemas.MD5Checksum: Computed checksum for existing
                 manifest.
-            None: If none exists.\
+            None: If none exists.
 
         """
         if self.installed_mf_path:

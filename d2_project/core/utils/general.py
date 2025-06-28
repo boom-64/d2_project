@@ -46,9 +46,8 @@ def mv_item(
                 FileExistsError.
 
     Raises:
-        FileNotFoundError: If the source path does not exist.
-        IsADirectoryError: If attempting to move directory onto file path.
-        FileExistsError: If the target path exists and 'overwrite' is False.
+        FileExistsError: If the target path exists and 'overwrite' is False, or
+            if attempting to move directory onto file path.
 
     Notes:
         Do not call this function many times instead of using shutil.move().
@@ -106,7 +105,8 @@ def extract_zip(
     Args:
         zip_path (Path): Path to the ZIP archive.
         extract_to (Path): Directory to extract files into.
-        overwrite (bool): Whether to overwrite entries if they exist.
+        overwrite (bool): Whether to overwrite entries if they exist (defaults
+            to False).
         expected_file_count (int, optional): Expected # of files in the zip.
         expected_dir_count (int, optional): Expected # of dirs in the zip.
 
@@ -114,9 +114,7 @@ def extract_zip(
         None.
 
     Raises:
-        FileNotFoundError: If 'zip_path' doesn't point to a file.
         NotADirectoryError: If 'extract_to' exists but is not a directory.
-        ValueError: If the expected file or directory count is violated.
 
     """
     has_expectation: bool = (
@@ -192,8 +190,6 @@ def rm_sibling_files(files_to_keep: set[Path]) -> None:
     Raises:
         ValueError: If 'files_to_keep' is empty or if the files are not all
             in the same directory.
-        FileNotFoundError: If any path in 'files_to_keep' does not exist or
-            is not a file.
         OSError: If an error occurs while attempting to delete a file.
 
     """

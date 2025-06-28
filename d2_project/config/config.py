@@ -1,10 +1,9 @@
 """Generate configuration and sanity classes from TOML files.
 
-This module contains configuration and sanity class definitions and
-instances generated using their respective TOML files. These classes
-are also capable of regenerating the TOML files by calling
-self.regenerate_toml() which uses the class defaults to regenerate a
-TOML file.
+This module contains Settings and Sanity class definitions and instances
+generated using their respective TOML files. These classes are also capable of
+regenerating the TOML files by calling self.regenerate_toml() which uses the
+class defaults to regenerate a TOML file.
 """
 
 # ==== Import Annotations From __future__ ====
@@ -30,12 +29,10 @@ if TYPE_CHECKING:
     from logging import Logger
 
 # ==== Logging Config ====
-
 _logger: Logger = d2_project_logger.get_logger(__name__)
 
 
 # ==== Dataclasses Needed For TypeAliases ====
-# Cannot use TypeAliases from below here.
 @dataclass(frozen=True)
 class _CustomDictStructure:
     """Parent class for custom dict structures for method sharing."""
@@ -75,6 +72,11 @@ class ConfigSuperclass:
 
     This class is for sharing regenerate_toml() and related functions, as well
     as from_toml().
+
+    Attributes:
+        _exclude_fields_from_toml (tuple[str, ...]): Placeholder for fields to
+            be excluded from generated toml.
+
     """
 
     _exclude_fields_from_toml: tuple[str, ...] = ()
@@ -87,15 +89,13 @@ class ConfigSuperclass:
 
         This function regenerates a TOML file at the given path 'path' from
         the class's attribute defaults, ignoring fields with names listed
-        in 'exclude_fields'. It serialises each field using
-        _toml_serialise_value() and writes them to the path in a structured
-        fstring format for TOML, overwriting any existing file of the same
-        path.
+        in 'self.exclude_fields'. It serialises each field using
+        self._toml_serialise_value() and writes them to the path in a
+        structured fstring format for TOML, overwriting any existing file of
+        the same path.
 
         Args:
             path (Path): Path to TOML file to write to.
-            exclude_fields (set[str] | None, optional): Optional set of
-                fields to ignore. (defaults to None).
 
         """
         with Path.open(path, "w", encoding="utf-8") as toml_open:
@@ -132,7 +132,7 @@ class ConfigSuperclass:
             s (str): Key to be checked.
 
         Returns:
-            bool: Whether the string can be used as a bare key.
+            bool: Whether or not the string can be used as a bare key.
 
         """
         try:
@@ -148,23 +148,32 @@ class ConfigSuperclass:
         except d2_project_errors.PatternMismatchError:
             return False
 
-    def _toml_serialise_string(self, string: str) -> str:
+    def _toml_serialise_string_value(self, string_value: str) -> str:
+        """Serialise string for use in TOML file.
+
+        Args:
+            string_value (str): Value to serialise.
+
+        Returns:
+            str: Serialised value.
+
+        """
         needs_triple_quotes_pattern = (
             d2_project_validators.toml_needs_triple_quotes_pattern
         )
 
         try:
             d2_project_validators.str_matches_pattern(
-                value=string,
+                value=string_value,
                 pattern=needs_triple_quotes_pattern.pattern,
                 pattern_for=needs_triple_quotes_pattern.pattern_for,
                 log_func=None,
             )
 
         except d2_project_errors.PatternMismatchError:
-            return f'"{string}"'
+            return f'"{string_value}"'
 
-        escaped = string.replace('"""', '\\"""')
+        escaped = string_value.replace('"""', '\\"""')
         indented = "\n".join("    " + line for line in escaped.splitlines())
         return '"""\n' + indented + '\n"""'
 
@@ -195,7 +204,7 @@ class ConfigSuperclass:
                 serialised = str(value)
 
             case str():
-                serialised = self._toml_serialise_string(value)
+                serialised = self._toml_serialise_string_value(value)
 
             case _CustomDictStructure() if not value:
                 serialised = "{ }"
@@ -221,7 +230,7 @@ class ConfigSuperclass:
             case _:
                 # Default case for sequences/iterables
                 serialised_str_list: list[str] = [
-                    self._toml_serialise_string(entry) for entry in value
+                    self._toml_serialise_string_value(entry) for entry in value
                 ]
                 serialised = (
                     "[\n  " + ",\n  ".join(serialised_str_list) + ",\n]"
@@ -282,24 +291,23 @@ class Sanity(ConfigSuperclass):
     in the TOML file to overwrite the defaults listed here.
 
     Attributes:
+        _exclude_fields_from_toml (tuple[str, ...]): Excluded fields from TOML.
         strict (bool): Whether the sanity checkers should raise or log and
             silently fail.
         expected_remote_lang_dir (str): The expected remote path of the
             language directory each containing a manifest location.
-
-    Methods:
-        check_remote_mf_dir(): Sanity checker for 'expected_remote_lang_dir'
-            attribute.
-        disable_strict(): Sets 'self.strict' to False.
+        expected_bungie_response_data_fields (tuple[str, ...]): The expected
+            fields in Bungie response.
 
     """
 
+    # ==== Excluded Fields From TOML ====
+    _exclude_fields_from_toml: tuple[str, ...] = (
+        "_exclude_fields_from_toml",
+        "strict",
+    )
     # ==== Flags ====
     strict: bool = False
-    _exclude_fields_from_toml: tuple[str, ...] = (
-        "strict",
-        "_exclude_fields_from_toml",
-    )
 
     # ==== Remote Manifest Location Attributes ====
     expected_remote_lang_dir: str = "/common/destiny_content/sqlite/"
@@ -370,9 +378,6 @@ class _ManifestZipStructure(_CustomDictStructure):
         expected_dir_count (int): Expected number of directories in the
             archive.
 
-    Methods:
-        to_dict: Converts _ManifestZipStructure object to dict.
-
     """
 
     expected_file_count: int
@@ -419,27 +424,23 @@ class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attribute
     in the TOML file to overwrite the defaults listed here.
 
     Attributes:
+        _exclude_fields_from_toml (tuple[str, ...]): Fields to exclude from
+            TOML.
         _expected_mf_name_template_str (str): Converted Template object for
             use in Settings.expected_mf_name_template().
+        desired_mf_lang (str): Desired manifest language.
         mf_extension (str): Manifest filename extension.
         mf_starts_with (str): Manifest filename start.
-        mf_zip_structure (MappingProxyType): Zip structure of Bungie's
+        mf_zip_structure (_ManifestZipStructure): Zip structure of Bungie's
             manifest archive.
         mf_finder_url (url): Bungies manifest finder URL.
         mf_loc_base_url (str): Base URL for manifest location.
-        mf_lang (str): Desired manifest language.
-        api_key (str): API key.
+        _mf_response_structure (_ManifestResponseStructure): Response
+            structure.
         force_update (bool): Whether to force manifest update.
-        mf_dir_path (Path): Path to manifest directory.
+        _api_key_path_str (str): Path to API key TOML file.
+        _mf_dir_path (str): Path to manifest directory as str.
         mf_bak_ext (str): Backup manifest file extension.
-
-    Properties:
-        expected_mf_name_template (Template): Template for expected
-            manifest name format.
-        expected_mf_name_regex (str): Template with substituted values.
-
-    Class methods:
-        from_toml(): Generator for 'sanity: Sanity' object.
 
     """
 
@@ -494,12 +495,22 @@ class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attribute
 
     @cached_property
     def _api_key_path(self) -> Path:
-        """Convert _api_key_path_str to Path object."""
+        """Convert _api_key_path_str to Path object.
+
+        Returns:
+            Path: Path to API key TOML.
+
+        """
         return Path(self._api_key_path_str)
 
     @cached_property
     def api_key(self) -> str:
-        """Return API key from _api_key_path."""
+        """Return API key from _api_key_path.
+
+        Returns:
+            str: API key string.
+
+        """
         api_key_path: Path = self._api_key_path
         try:
             data: dict[str, str] = toml.load(api_key_path)
@@ -512,7 +523,7 @@ class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attribute
             raise
 
     @cached_property
-    def expected_mf_name_template(self) -> Template:
+    def _expected_mf_name_template(self) -> Template:
         """Converts _expected_mf_name_template_str to Template.
 
         This function converts the configurable
@@ -530,21 +541,27 @@ class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attribute
         """Substitutes template with configurable extension and start.
 
         This function substitutes mf_extension and mf_starts_with into the
-        Template from expected_mf_name_template().
+        Template from _expected_mf_name_template().
 
         Returns:
             str: Regular expression for expected manfifest filename
                 structure.
 
         """
-        return self.expected_mf_name_template.substitute(
+        return self._expected_mf_name_template.substitute(
             starts_with=self.mf_starts_with,
             extension=self.mf_extension,
         )
 
     @cached_property
     def mf_response_structure(self) -> _ManifestResponseStructure:
-        """Substitute and return _mf_response_structure."""
+        """Substitute and return _mf_response_structure.
+
+        Returns:
+            _ManifestResponseStructure: Subsitituted Manifest response
+                structure.
+
+        """
         return _ManifestResponseStructure(
             key_0=self._mf_response_structure.key_0,
             key_1=Template(self._mf_response_structure.key_1).substitute(
@@ -554,7 +571,12 @@ class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attribute
 
     @cached_property
     def mf_dir_path(self) -> Path:
-        """Return Path(self._mf_dir_path)."""
+        """Return Path(self._mf_dir_path).
+
+        Returns:
+            Path: Path object from _mf_dir_path.
+
+        """
         return Path(self._mf_dir_path)
 
 

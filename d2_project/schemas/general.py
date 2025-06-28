@@ -74,10 +74,6 @@ class MD5Checksum:
         Returns:
             MD5Checksum: The hexadecimal MD5 hash of the file contents.
 
-        Raises:
-            TypeError: If 'path' type is not Path.
-            ValueError: If 'path' does not refer to a file.
-
         """
         d2_project_validators.entry_is_file(path)
         # Assign 'hasher' - an MD5 hash object. Using MD5 for file integrity
@@ -101,9 +97,10 @@ class MD5Checksum:
         the expected checksum. It includes both the expected and actual
         checksums.
 
-        Attributes/args:
+        Attributes:
             expected (core.schemas.MD5Checksum): Expected checksum.
             computed (core.schemas.MD5Checksum): Actual checksum calculated.
+
         """
 
         expected: MD5Checksum
@@ -139,18 +136,6 @@ class ParsedURL:
             'https') and netloc (e.g., 'example.com').
         path (str): The path component of the URL. Defaults to an empty
             string if not provided.
-
-    Methods:
-        from_full_url(full_url: str) -> 'URL':
-            Creates a URL instance from a full URL string.
-
-        from_base_and_path(base_url: str, path: str) -> 'URL':
-            Creates a URL instance from a base URL and a path.
-
-    Raises:
-        TypeError: If any argument types are incorrect.
-        ValueError: If the reconstructed URL is valid according to the
-            'validators.url()' check.
 
     """
 
@@ -201,11 +186,8 @@ class ParsedURL:
             path (str): The path component to append to the base URL.
 
         Returns:
-            URL: An instance of the URL class with the combined URL.
-
-        Raises:
-            ValueError: If the reconstructed URL is invalid according to
-                validators.url().
+            ParsedURL: An instance of the ParsedURL class with the combined
+                URL.
 
         """
         cleaned_base_url = base_url.strip().rstrip("/")
@@ -216,11 +198,6 @@ class ParsedURL:
         parsed_url: ParseResult = urlparse(computed_url)
         full_path = parsed_url.path
 
-        if not validators.url(computed_url):
-            _logger.exception(
-                "Passed URL '%s' is an invalid URL.",
-                computed_url,
-            )
-            raise ValueError
+        d2_project_validators.str_is_valid_url(computed_url)
 
         return cls(url=computed_url, base_url=cleaned_base_url, path=full_path)

@@ -37,18 +37,17 @@ def request_bungie(
 
     This function makes a GET request to Bungie with optional use of an
     API key. If the response fails, a ConnectionError is raised. The
-    response is parsed and returned with the custom TypedDict
-    BungieResponseData. If the parsing fails, a ValueError is raised.
+    response is returned raw as a Response object.
 
     Args:
-        url (str): Optional complete URL to be queried.
+        url (str): Complete URL to be queried.
         key (str | None): Optional API key to pass in request.
 
     Raises:
         ConnectionError: If the HTTP request fails (non-2xx status).
 
     Returns:
-        BungieResponseData: Parsed JSON response from Bungie.
+        Response: Raw response.
 
     """
     headers = {"X-API-KEY": key} if key else None
@@ -76,10 +75,8 @@ def dl_bungie_content(
     """Download and write Bungie content to a file.
 
     This function tries to stream the content of the response to the passed
-    file, streaming if stream is passed. If an error occurs with the request
-    itself, a custom DownloadError is raised with the URL, whether the
-    content is being streamed and the original exception raised. If another
-    OSError occurs, i.e. with writing the file, an OSError is raised.
+    file, streaming if stream is passed. If an OSError occurs, i.e. with
+    writing the file, it is re-raised.
 
     Args:
         file (IO[bytes]): The (open) file to write the content to.
@@ -92,8 +89,6 @@ def dl_bungie_content(
             function and other contexts.
 
     Raises:
-        ValueError: If passed URL is invalid.
-        DownloadError: If an error occurs with the request.
         OSError: If another OSError occurs with writing the file.
 
     """

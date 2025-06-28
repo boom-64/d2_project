@@ -152,7 +152,12 @@ def str_matches_pattern(
 
 
 def str_is_valid_suffix(*, value: str, log_func: Callable[..., None]) -> bool:
-    """Simplified pattern call for suffix to avoid code dupe."""
+    """Simplified pattern call for suffix to avoid code dupe.
+
+    Returns:
+        bool: True if pattern matched, else custom error raised.
+
+    """
     return str_matches_pattern(
         value=value,
         pattern=r"\.[A-Za-z0-9._-]+",
@@ -180,6 +185,15 @@ def entry_is_file(path: Path) -> None:
 
 
 def str_is_valid_url(value: str) -> None:
-    """Validate URL."""
+    """Validate URL.
+
+    Args:
+        value (str): URL to validate.
+
+    Raises:
+        ValueError: If URL invalid.
+
+    """
     if not validators.url(value):
+        _logger.error("URL '%s' invalid.", value)
         raise ValueError
