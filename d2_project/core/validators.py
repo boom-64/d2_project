@@ -44,11 +44,6 @@ lc_checksum_pattern: ComparePattern = ComparePattern(
     pattern_for="(lowercase) checksum",
 )
 
-file_suffix_pattern: ComparePattern = ComparePattern(
-    pattern=r"\.[A-Za-z0-9._-]+",
-    pattern_for="file suffix",
-)
-
 url_path_pattern: ComparePattern = ComparePattern(
     pattern="^/?(?:[A-Za-z0-9._~!$&'()*+,;=:@%-]+/)*[A-Za-z0-9._~!$&'()*+,;=:@%-]*/?$",
     pattern_for="URL path",
@@ -153,6 +148,16 @@ def str_matches_pattern(
         value=value,
         pattern=pattern,
         pattern_for=pattern_for,
+    )
+
+
+def str_is_valid_suffix(*, value: str, log_func: Callable[..., None]) -> bool:
+    """Simplified pattern call for suffix to avoid code dupe."""
+    return str_matches_pattern(
+        value=value,
+        pattern=r"\.[A-Za-z0-9._-]+",
+        pattern_for="file suffix",
+        log_func=log_func,
     )
 
 

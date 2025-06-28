@@ -34,7 +34,7 @@ T = TypeVar("T")
 
 
 # ==== Classes ===
-@dataclass(frozen=True, init=False)
+@dataclass(frozen=True)
 class BungieResponseData:
     """Class for handling Bungie response data.
 
@@ -53,7 +53,7 @@ class BungieResponseData:
 
     raw_data: Response
 
-    class BungieResponseField[T]:
+    class BungieResponseField[T]:  # pylint: disable=too-few-public-methods
         """Class for BungieResponseData fields."""
 
         def __init__(self, field_name: str, return_type: type[T]) -> None:
@@ -167,6 +167,7 @@ class ManifestLocationData(BungieResponseData):
 
     def __post_init__(self) -> None:
         """Initialise class."""
+        super().__post_init__()
         d2_project_config.sanity.check_remote_mf_dir(
             remote_path=self.remote_mf_path,
         )
@@ -182,7 +183,7 @@ class ManifestLocationData(BungieResponseData):
         mf_response_structure = (
             d2_project_config.settings.mf_response_structure
         )
-        key = cast("Field[Any]", None)
+        key = cast(Field[Any], None)  # noqa: TC006
         try:
             for key in (fields(mf_response_structure))[:-1]:
                 response_delver = response_delver[

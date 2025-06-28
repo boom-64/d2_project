@@ -56,7 +56,7 @@ if TYPE_CHECKING:
     from typing import Self, TypeAlias
 
     # ==== Custom TypeAlias Import ====
-    """Values to convert to and from TOML files."""
+    # Values to convert to and from TOML files.
     TomlValue: TypeAlias = (
         bool
         | Path
@@ -407,7 +407,7 @@ _default_mf_response_structure: _ManifestResponseStructure = (
 
 
 @dataclass(frozen=True)
-class Settings(ConfigSuperclass):
+class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attributes
     """Class for generating 'settings' object for sanity checking.
 
     This class is used to generate a 'settings' object for use across the
@@ -477,10 +477,8 @@ class Settings(ConfigSuperclass):
     def __post_init__(self) -> None:
         """Post-initialisation."""
         for suffix in (self.mf_extension, self.mf_bak_ext):
-            d2_project_validators.str_matches_pattern(
+            d2_project_validators.str_is_valid_suffix(
                 value=suffix,
-                pattern=d2_project_validators.file_suffix_pattern.pattern,
-                pattern_for=d2_project_validators.file_suffix_pattern.pattern_for,
                 log_func=_logger.exception,
             )
         for url in (self.mf_finder_url, self.mf_loc_base_url):
@@ -543,13 +541,6 @@ class Settings(ConfigSuperclass):
             starts_with=self.mf_starts_with,
             extension=self.mf_extension,
         )
-
-    """
-    @property
-    def desired_mf_lang(self) -> langcodes.Language:
-        'Validate _mf_lang and return langcodes.Language object.'
-        return langcodes.get(self._desired_mf_lang)
-    """
 
     @cached_property
     def mf_response_structure(self) -> _ManifestResponseStructure:

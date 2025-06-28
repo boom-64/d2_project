@@ -266,10 +266,8 @@ def append_suffix(*, path: Path, suffix: str, overwrite: bool = False) -> Path:
 
     """
     d2_project_validators.entry_is_file(path)
-    d2_project_validators.str_matches_pattern(
+    d2_project_validators.str_is_valid_suffix(
         value=suffix,
-        pattern=d2_project_validators.file_suffix_pattern.pattern,
-        pattern_for=d2_project_validators.file_suffix_pattern.pattern_for,
         log_func=_logger.exception,
     )
 
