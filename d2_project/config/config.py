@@ -150,23 +150,23 @@ class ConfigSuperclass:
         except d2_project_errors.PatternMismatchError:
             return False
 
-    def _serialise_string(self, value: str) -> str:
+    def _toml_serialise_string(self, string: str) -> str:
         needs_triple_quotes_pattern = (
             d2_project_validators.toml_needs_triple_quotes_pattern
         )
 
         try:
             d2_project_validators.str_matches_pattern(
-                value=value,
+                value=string,
                 pattern=needs_triple_quotes_pattern.pattern,
                 pattern_for=needs_triple_quotes_pattern.pattern_for,
                 log_func=None,
             )
 
         except d2_project_errors.PatternMismatchError:
-            return f'"{value}"'
+            return f'"{string}"'
 
-        escaped = value.replace('"""', '\\"""')
+        escaped = string.replace('"""', '\\"""')
         indented = "\n".join("    " + line for line in escaped.splitlines())
         return '"""\n' + indented + '\n"""'
 
@@ -197,7 +197,7 @@ class ConfigSuperclass:
                 serialised = str(value)
 
             case str():
-                serialised = self._serialise_string(value)
+                serialised = self._toml_serialise_string(value)
 
             case _CustomDictStructure() if not value:
                 serialised = "{ }"
@@ -223,7 +223,7 @@ class ConfigSuperclass:
             case _:
                 # Default case for sequences/iterables
                 serialised_str_list: list[str] = [
-                    self._serialise_string(entry) for entry in value
+                    self._toml_serialise_string(entry) for entry in value
                 ]
                 serialised = (
                     "[\n  " + ",\n  ".join(serialised_str_list) + ",\n]"
@@ -266,6 +266,9 @@ class ConfigSuperclass:
                 data[key] = dataclass_type(**data[key])
 
         return cls(**data)
+
+
+# ==== Sanity Class ====
 
 
 @dataclass(frozen=True)
@@ -340,13 +343,13 @@ class Sanity(ConfigSuperclass):
             ValueError: If self.strict and the check fails.
 
         """
-        _clean_erld: str = "/" + self.expected_remote_lang_dir.strip("/") + "/"
-        if not remote_path.startswith(_clean_erld):
+        clean_erld: str = "/" + self.expected_remote_lang_dir.strip("/") + "/"
+        if not remote_path.startswith(clean_erld):
             _logger.warning(
                 "Unexpected remote manifest path format: '%s'. Bungie may have"
                 " changed manifest path format from '%s/$MANIFEST_NAME'.",
                 remote_path,
-                _clean_erld,
+                clean_erld,
             )
 
             if self.strict:
@@ -355,6 +358,9 @@ class Sanity(ConfigSuperclass):
     def disable_strict(self) -> None:
         """Set Sanity instance attribute 'strict' to False."""
         object.__setattr__(self, "strict", False)
+
+
+# ==== Settings Attribute Classes ====
 
 
 @dataclass(frozen=True)
@@ -399,6 +405,7 @@ _default_mf_response_structure: _ManifestResponseStructure = (
         key_1="$desired_mf_lang",
     )
 )
+# ==== Settings Class ====
 
 
 @dataclass(frozen=True)
@@ -497,14 +504,14 @@ class Settings(ConfigSuperclass):
     @cached_property
     def api_key(self) -> str:
         """Return API key from _api_key_path."""
-        _api_key_path: Path = self._api_key_path
+        api_key_path: Path = self._api_key_path
         try:
-            data: dict[str, str] = toml.load(_api_key_path)
+            data: dict[str, str] = toml.load(api_key_path)
             return data["api_key"]
         except:
             _logger.exception(
                 "Failed to read API key from path '%s'.",
-                _api_key_path,
+                api_key_path,
             )
             raise
 

@@ -213,28 +213,28 @@ class ManifestLocationData(BungieResponseData):
     @property
     def remote_mf_path(self) -> str:
         """Get remote manifest path."""
-        _delved_langs: dict[str, str] = self._get_delved_remote_mf_langs()
-        _desired_mf_lang: str = d2_project_config.settings.desired_mf_lang
+        delved_langs: dict[str, str] = self._get_delved_remote_mf_langs()
+        desired_mf_lang: str = d2_project_config.settings.desired_mf_lang
 
-        _delved_remote_mf_path_key: str | None = (
+        delved_remote_mf_path_key: str | None = (
             langcodes.closest_supported_match(
-                _desired_mf_lang,
-                list(_delved_langs.keys()),
+                desired_mf_lang,
+                list(delved_langs.keys()),
             )
         )
 
-        if _delved_remote_mf_path_key is not None:
-            return _delved_langs[_delved_remote_mf_path_key]
+        if delved_remote_mf_path_key is not None:
+            return delved_langs[delved_remote_mf_path_key]
 
         _logger.error(
             "Manifest language '%s' (%s) currently unavailable. Available "
             "languages: %s.",
-            _desired_mf_lang,
-            langcodes.Language.get(_desired_mf_lang).display_name(),
+            desired_mf_lang,
+            langcodes.Language.get(desired_mf_lang).display_name(),
             ", ".join(
                 [
                     langcodes.Language.get(lang).display_name()
-                    for lang in _delved_langs
+                    for lang in delved_langs
                 ],
             ),
         )
@@ -290,33 +290,33 @@ class InstalledManifestData:
             None: If no installed manifest exists.
 
         """
-        _mf_dir_path: Path = d2_project_config.settings.mf_dir_path
+        mf_dir_path: Path = d2_project_config.settings.mf_dir_path
 
-        _mf_candidates: list[Path] = []
-        for entry in _mf_dir_path.iterdir():
+        mf_candidates: list[Path] = []
+        for entry in mf_dir_path.iterdir():
             if (
                 entry.suffix == (d2_project_config.settings.mf_extension)
                 and entry.is_file()
             ):
-                _mf_candidates.append(entry)
+                mf_candidates.append(entry)
 
                 # Raise early once more than one candidate found
-                if len(_mf_candidates) > 1:
+                if len(mf_candidates) > 1:
                     _logger.exception(
                         "Directory '%s contains too many manifest candidates, "
                         "including both '%s' and '%s'.",
-                        _mf_dir_path,
-                        _mf_candidates[0].name,
-                        _mf_candidates[1].name,
+                        mf_dir_path,
+                        mf_candidates[0].name,
+                        mf_candidates[1].name,
                     )
                     raise FileExistsError
 
         # Returns None if no candidate found
-        if not _mf_candidates:
+        if not mf_candidates:
             return None
 
         # Must have len(_mf_candidates) == 1
-        return _mf_candidates[0]
+        return mf_candidates[0]
 
     @property
     def filename_pattern_expected(self) -> bool | None:
