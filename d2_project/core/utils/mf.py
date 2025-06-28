@@ -126,8 +126,7 @@ def dl_bungie_content(
         _logger.exception("Error writing file %s", file_path.resolve())
         raise
 
-    else:
-        return True
+    return True
 
 
 def dl_and_extract_mf_zip(

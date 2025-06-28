@@ -352,7 +352,7 @@ class InstalledManifestData:
         expected_checksum: general_schemas.MD5Checksum | None = None
         expected_checksum_str: str
 
-        if self.installed_mf_path and self.filename_pattern_expected:  # pyright: ignore[reportUnnecessaryComparison]
+        if self.installed_mf_path and self.filename_pattern_expected:
             expected_checksum_str = self.installed_mf_path.stem.split("_")[-1]
             expected_checksum = general_schemas.MD5Checksum(
                 expected_checksum_str,
@@ -463,5 +463,4 @@ class InstalledManifestData:
 
             raise
 
-        else:
-            return new_local_manifest
+        return new_local_manifest
