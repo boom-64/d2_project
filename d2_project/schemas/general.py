@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # ==== Standard Libraries ====
 import hashlib
-import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
@@ -13,23 +12,18 @@ from urllib.parse import urljoin, urlparse
 import validators
 
 # ==== Local Libraries ====
+import d2_project.core.logger as d2_project_logger
 import d2_project.core.validators as d2_project_validators
 
 # ==== Type Checking ====
 
 if TYPE_CHECKING:
+    from logging import Logger
     from pathlib import Path
     from urllib.parse import ParseResult
 
 # ==== Logging Config ====
-logging.basicConfig(
-    filename="app.log",
-    filemode="a",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
-_logger = logging.getLogger(__name__)
+_logger: Logger = d2_project_logger.get_logger(__name__)
 
 # ==== Classes ====
 

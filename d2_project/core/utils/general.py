@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
-import logging
 import shutil
 import tempfile
 import zipfile
@@ -13,22 +12,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 # ==== Local Modules ====
+import d2_project.core.logger as d2_project_logger
 import d2_project.core.validators as d2_project_validators
 
 # ==== Type Checking ====
 if TYPE_CHECKING:
+    from logging import Logger
     from typing import Callable
     from zipfile import ZipInfo
 
 # ==== Logging Config ====
-logging.basicConfig(
-    filename="app.log",
-    filemode="a",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
-_logger = logging.getLogger(__name__)
+_logger: Logger = d2_project_logger.get_logger(__name__)
 
 
 # ==== Functions ====

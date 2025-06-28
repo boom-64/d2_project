@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
-import logging
 from dataclasses import Field, dataclass, fields
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, TypeVar, cast
@@ -14,6 +13,7 @@ import langcodes
 # ==== Local Modules ====
 import d2_project.config.config as d2_project_config
 import d2_project.core.errors as d2_project_errors
+import d2_project.core.logger as d2_project_logger
 import d2_project.core.utils.general as general_utils
 import d2_project.core.utils.mf as mf_utils
 import d2_project.core.validators as d2_project_validators
@@ -21,18 +21,13 @@ import d2_project.schemas.general as general_schemas
 
 # ==== Type Checking ====
 if TYPE_CHECKING:
+    from logging import Logger
     from pathlib import Path
 
     from requests.models import Response
 
 # ==== Logging Config ====
-logging.basicConfig(
-    filename="app.log",
-    filemode="a",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-_logger = logging.getLogger(__name__)
+_logger: Logger = d2_project_logger.get_logger(__name__)
 
 # ==== Local Variables ====
 T = TypeVar("T")

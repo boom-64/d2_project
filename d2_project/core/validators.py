@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
-import logging
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -13,21 +12,16 @@ import validators
 
 # ==== Local Modules ====
 import d2_project.core.errors as d2_project_errors
+import d2_project.core.logger as d2_project_logger
 
 # ==== Type Checking ====
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from logging import Logger
     from pathlib import Path
 
 # ==== Logging Config ====
-logging.basicConfig(
-    filename="app.log",
-    filemode="a",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
-_logger = logging.getLogger(__name__)
+_logger: Logger = d2_project_logger.get_logger(__name__)
 
 
 # ==== ComparePatterns ====

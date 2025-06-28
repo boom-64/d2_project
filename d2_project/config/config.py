@@ -11,7 +11,6 @@ TOML file.
 from __future__ import annotations
 
 # ==== Standard Library Imports ====
-import logging
 from dataclasses import MISSING, dataclass, fields
 from functools import cached_property
 from pathlib import Path
@@ -23,17 +22,16 @@ import toml
 
 # ==== Local Module Imports ====
 import d2_project.core.errors as d2_project_errors
+import d2_project.core.logger as d2_project_logger
 import d2_project.core.validators as d2_project_validators
 
-# ==== Logging Config ====
-logging.basicConfig(
-    filename="app.log",
-    filemode="a",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+# ==== Type Checking ====
+if TYPE_CHECKING:
+    from logging import Logger
 
-_logger = logging.getLogger(__name__)
+# ==== Logging Config ====
+
+_logger: Logger = d2_project_logger.get_logger(__name__)
 
 
 # ==== Dataclasses Needed For TypeAliases ====

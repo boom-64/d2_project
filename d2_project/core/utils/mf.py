@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # ==== Standard Libraries ====
-import logging
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -12,24 +11,19 @@ from typing import TYPE_CHECKING
 import requests
 
 # ==== Local Modules ====
+import d2_project.core.logger as d2_project_logger
 import d2_project.core.utils.general as general_utils
 
 # ==== Type Checking ====
 
 if TYPE_CHECKING:
+    from logging import Logger
     from typing import IO
 
     from requests.models import Response
 
 # ==== Logging Config ====
-logging.basicConfig(
-    filename="app.log",
-    filemode="a",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
-_logger = logging.getLogger(__name__)
+_logger: Logger = d2_project_logger.get_logger(__name__)
 
 # ==== Functions ====
 
