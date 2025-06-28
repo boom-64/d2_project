@@ -79,7 +79,7 @@ class ConfigSuperclass:
     as from_toml().
     """
 
-    exclude_fields_from_toml: tuple[str, ...] = ()
+    _exclude_fields_from_toml: tuple[str, ...] = ()
 
     def regenerate_toml(
         self,
@@ -102,12 +102,12 @@ class ConfigSuperclass:
         """
         with Path.open(path, "w", encoding="utf-8") as toml_open:
             for field in fields(self):
-                exclude_fields_from_toml: tuple[str, ...] = (
-                    self.exclude_fields_from_toml
+                _exclude_fields_from_toml: tuple[str, ...] = (
+                    self._exclude_fields_from_toml
                 )
                 if (
-                    exclude_fields_from_toml
-                    and field.name in exclude_fields_from_toml
+                    _exclude_fields_from_toml
+                    and field.name in _exclude_fields_from_toml
                 ):
                     continue
 
@@ -186,50 +186,48 @@ class ConfigSuperclass:
         """
         serialised: str
 
-        if isinstance(value, bool):
-            serialised = "true" if value else "false"
+        match value:
+            case bool():
+                serialised = "true" if value else "false"
 
-        elif isinstance(value, Path):
-            serialised = f'"{value}"'
+            case Path():
+                serialised = f'"{value}"'
 
-        elif isinstance(value, (int, float)):
-            serialised = str(value)
+            case int() | float():
+                serialised = str(value)
 
-        elif isinstance(value, str):
-            serialised = self._serialise_string(value)
+            case str():
+                serialised = self._serialise_string(value)
 
-        elif isinstance(value, _CustomDictStructure) and not value:
-            serialised = "{ }"
+            case _CustomDictStructure() if not value:
+                serialised = "{ }"
 
-        elif isinstance(value, _CustomDictStructure):
-            parts: list[str] = []
+            case _CustomDictStructure():
+                parts: list[str] = []
 
-            for attribute in fields(value):
-                attribute_name: str = attribute.name
+                for attribute in fields(value):
+                    attribute_name: str = attribute.name
 
-                key: str = attribute_name
-                if not self._is_bare_key(attribute_name):
-                    key = f'"{attribute_name}"'
+                    key: str = attribute_name
+                    if not self._is_bare_key(attribute_name):
+                        key = f'"{attribute_name}"'
 
-                serialised_value_str: str = self._toml_serialise_value(
-                    getattr(
-                        value,
-                        attribute.name,
-                    ),
+                    serialised_value_str: str = self._toml_serialise_value(
+                        getattr(value, attribute.name),
+                    )
+
+                    parts.append(f"{key} = {serialised_value_str}")
+
+                serialised = "{ " + ", ".join(parts) + " }"
+
+            case _:
+                # Default case for sequences/iterables
+                serialised_str_list: list[str] = [
+                    self._serialise_string(entry) for entry in value
+                ]
+                serialised = (
+                    "[\n  " + ",\n  ".join(serialised_str_list) + ",\n]"
                 )
-
-                parts.append(
-                    f"{key} = {serialised_value_str}",
-                )
-
-            serialised = "{ " + ", ".join(parts) + " }"
-
-        else:
-            _serialised_str_list: list[str] = [
-                self._serialise_string(entry) for entry in value
-            ]
-
-            serialised = "[\n  " + ",\n  ".join(_serialised_str_list) + ",\n]"
 
         return serialised
 
@@ -297,9 +295,9 @@ class Sanity(ConfigSuperclass):
 
     # ==== Flags ====
     strict: bool = False
-    exclude_fields_from_toml: tuple[str, ...] = (
+    _exclude_fields_from_toml: tuple[str, ...] = (
         "strict",
-        "exclude_fields_from_toml",
+        "_exclude_fields_from_toml",
     )
 
     # ==== Remote Manifest Location Attributes ====
@@ -441,7 +439,7 @@ class Settings(ConfigSuperclass):
     """
 
     # ==== TOML-Excluded Fields ====
-    exclude_fields_from_toml: tuple[str, ...] = tuple(
+    _exclude_fields_from_toml: tuple[str, ...] = tuple(
         "exclude_fields_from_toml",
     )
     # ==== Private Manifest Filename Attributes ====
@@ -510,7 +508,7 @@ class Settings(ConfigSuperclass):
             )
             raise
 
-    @property
+    @cached_property
     def expected_mf_name_template(self) -> Template:
         """Converts _expected_mf_name_template_str to Template.
 
@@ -524,7 +522,7 @@ class Settings(ConfigSuperclass):
         """
         return Template(self._expected_mf_name_template_str)
 
-    @property
+    @cached_property
     def expected_mf_name_regex(self) -> str:
         """Substitutes template with configurable extension and start.
 
@@ -548,7 +546,7 @@ class Settings(ConfigSuperclass):
         return langcodes.get(self._desired_mf_lang)
     """
 
-    @property
+    @cached_property
     def mf_response_structure(self) -> _ManifestResponseStructure:
         """Substitute and return _mf_response_structure."""
         return _ManifestResponseStructure(
@@ -558,7 +556,7 @@ class Settings(ConfigSuperclass):
             ),
         )
 
-    @property
+    @cached_property
     def mf_dir_path(self) -> Path:
         """Return Path(self._mf_dir_path)."""
         return Path(self._mf_dir_path)
@@ -579,6 +577,5 @@ settings_toml: Path = Path(__file__).resolve().parent / "settings.toml"
 settings.regenerate_toml(settings_toml)
 sanity.regenerate_toml(
     sanity_toml,
-    exclude_fields={"strict"},
 )
 """
