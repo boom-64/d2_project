@@ -222,7 +222,7 @@ class ManifestLocationData(BungieResponseData):
             raise
         return response_delver
 
-    @property
+    @cached_property
     def remote_mf_path(self) -> str:
         """Get remote manifest path.
 
