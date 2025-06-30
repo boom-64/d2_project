@@ -27,6 +27,7 @@ import d2_project.core.validators as d2_project_validators
 # ==== Type Checking ====
 if TYPE_CHECKING:
     from logging import Logger
+    from typing import Any
 
 # ==== Logging Config ====
 _logger: Logger = d2_project_logger.get_logger(__name__)
@@ -360,6 +361,27 @@ class Sanity(ConfigSuperclass):
 
             if self.strict:
                 raise ValueError
+
+    def check_extra_bungie_response_fields(
+        self,
+        json_data: dict[str, Any],
+    ) -> None:
+        """Check for extra fields in Bungie response.
+
+        Args:
+            json_data (dict[str, Any]): Bungie response JSON data.
+
+        """
+        diff: set[str] = set(json_data) - set(
+            self.expected_bungie_response_data_fields,
+        )
+
+        if diff:
+            _logger.exception(
+                "Unexpected components in response: %s",
+                ", ".join(f"{k}={json_data[k]!r}" for k in diff),
+            )
+            raise ValueError
 
     def disable_strict(self) -> None:
         """Set Sanity instance attribute 'strict' to False."""

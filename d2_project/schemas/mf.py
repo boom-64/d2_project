@@ -169,18 +169,10 @@ class BungieResponseData:
 
         """
         json_data: dict[str, Any] = self.raw_data.json()
-        diff: set[str] = set(json_data) - set(
-            d2_project_config.sanity.expected_bungie_response_data_fields,
-        )
 
-        if not diff:
-            return json_data
+        d2_project_config.sanity.check_extra_bungie_response_fields(json_data)
 
-        _logger.exception(
-            "Unexpected components in response: %s",
-            ", ".join(f"{k}={json_data[k]!r}" for k in diff),
-        )
-        raise ValueError
+        return json_data
 
 
 @dataclass(frozen=True)
