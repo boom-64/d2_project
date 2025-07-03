@@ -482,7 +482,7 @@ class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attribute
     mf_zip_structure: _ManifestZipStructure = _default_manifest_zip_structure
 
     # ==== Bungie Request Attributes ====
-    mf_finder_url: str = "https://www.bungie.net/Platform/Destiny/Manifest"
+    mf_finder_url: str = "https://www.bungie.net/Platform/Destiny2/Manifest"
     mf_loc_base_url: str = "https://www.bungie.net"
     _mf_response_structure: _ManifestResponseStructure = (
         _default_mf_response_structure
