@@ -22,6 +22,7 @@ import toml
 # ==== Local Module Imports ====
 import d2_project.core.logger as d2_project_logger
 import d2_project.core.validators as d2_project_validators
+import d2_project.schemas.general as general_schemas
 
 # ==== Type Checking ====
 if TYPE_CHECKING:
@@ -79,7 +80,7 @@ class ConfigSuperclass:
 
     """
 
-    _exclude_fields_from_toml: tuple[str, ...] = ()
+    exclude_fields_from_toml: tuple[str, ...] = ("exclude_fields_from_toml",)
 
     def regenerate_toml(
         self,
@@ -100,12 +101,12 @@ class ConfigSuperclass:
         """
         with Path.open(path, "w", encoding="utf-8") as toml_open:
             for field in fields(self):
-                _exclude_fields_from_toml: tuple[str, ...] = (
-                    self._exclude_fields_from_toml
+                exclude_fields_from_toml: tuple[str, ...] = (
+                    self.exclude_fields_from_toml
                 )
                 if (
-                    _exclude_fields_from_toml
-                    and field.name in _exclude_fields_from_toml
+                    exclude_fields_from_toml
+                    and field.name in exclude_fields_from_toml
                 ):
                     continue
 
@@ -289,8 +290,8 @@ class Sanity(ConfigSuperclass):
     """
 
     # ==== Excluded Fields From TOML ====
-    _exclude_fields_from_toml: tuple[str, ...] = (
-        "_exclude_fields_from_toml",
+    exclude_fields_from_toml: tuple[str, ...] = (
+        *ConfigSuperclass.exclude_fields_from_toml,
         "strict",
     )
     # ==== Flags ====
@@ -452,10 +453,6 @@ class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attribute
 
     """
 
-    # ==== TOML-Excluded Fields ====
-    _exclude_fields_from_toml: tuple[str, ...] = tuple(
-        "exclude_fields_from_toml",
-    )
     # ==== Private Manifest Filename Attributes ====
     _expected_mf_name_template_str: str = (
         "^${starts_with}[a-fA-F0-9]{32}${extension}$$"
@@ -481,6 +478,17 @@ class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attribute
     )
     _mf_dir_path: str = str(Path(__file__).resolve().parents[1] / "manifest")
     mf_bak_ext: str = ".bak"
+
+    _mossy_sheet_id: str = "1b57Hb8m1L3daFfUckQQqvvN6VOpD03KEssvQLMFpC5I"
+    _mossy_weapon_combat_scaling_gid: str = "282634418"
+    _gsheets_base_url = "https://docs.google.com"
+    _gsheets_url_dir_path = "/spreadsheets/d/"
+    _mossy_find_title_url_template_str: str = (
+        "${path}${sheet_id}/edit?gid=${gid}"
+    )
+    _mossy_csv_export_url_template_str: str = (
+        "${path}${sheet_id}/export?format=csv&gid=${gid}"
+    )
 
     # ==== Post-Initialisation ====
     def __post_init__(self) -> None:
@@ -587,6 +595,50 @@ class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attribute
         """
         return Path(self._mf_dir_path)
 
+    def _mossy_gsheets_url_from_template(self, template: Template) -> str:
+        """Substitute components into Sheets URL Template.
+
+        Args:
+            template (Template): Template to substitute into.
+
+        Returns:
+            str: Substituted URL.
+
+        """
+        subbed_path: str = template.substitute(
+            path=self._gsheets_url_dir_path,
+            sheet_id=self._mossy_sheet_id,
+            gid=self._mossy_weapon_combat_scaling_gid,
+        )
+        return general_schemas.ParsedURL.from_base_and_path(
+            base_url=self._gsheets_base_url,
+            path=subbed_path,
+        ).url
+
+    @cached_property
+    def mossy_find_title_url(self) -> str:
+        """Find Mossy title URL property.
+
+        Returns:
+            str: Mossy title URL.
+
+        """
+        return self._mossy_gsheets_url_from_template(
+            Template(self._mossy_find_title_url_template_str),
+        )
+
+    @cached_property
+    def mossy_csv_export_url(self) -> str:
+        """Find Mossy CSV export URL property.
+
+        Returns:
+            str: Mossy export URL.
+
+        """
+        return self._mossy_gsheets_url_from_template(
+            Template(self._mossy_csv_export_url_template_str),
+        )
+
 
 # ==== Instance Generation ====
 settings: Settings = Settings.from_toml(
@@ -597,11 +649,10 @@ sanity: Sanity = Sanity.from_toml(
 )
 
 # ==== TOML Regeneration ====
-"""
 sanity_toml: Path = Path(__file__).resolve().parent / "sanity.toml"
 settings_toml: Path = Path(__file__).resolve().parent / "settings.toml"
+
 settings.regenerate_toml(settings_toml)
 sanity.regenerate_toml(
     sanity_toml,
 )
-"""

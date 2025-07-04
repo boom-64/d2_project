@@ -7,55 +7,20 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from string import Template
 from typing import TYPE_CHECKING
 
 import requests
 from bs4 import BeautifulSoup
 
+import d2_project.config.config as d2_project_config
 import d2_project.core.logger as d2_project_logger
 import d2_project.core.validators as d2_project_validators
-import d2_project.schemas.general as general_schemas
 
 if TYPE_CHECKING:
     from logging import Logger
+    from typing import IO
 
 _logger: Logger = d2_project_logger.get_logger(__name__)
-
-sheet_id = "1b57Hb8m1L3daFfUckQQqvvN6VOpD03KEssvQLMFpC5I"
-weapon_combt_scaling_gid = "282634418"
-sheets_url_base = "https://docs.google.com"
-sheets_url_path = "/spreadsheets/d/"
-
-find_title_url_template = Template("${path}${sheet_id}/edit?gid=${gid}")
-csv_export_url_template = Template(
-    "${path}${sheet_id}/export?format=csv&gid=${gid}",
-)
-
-
-def _url_from_template(template: Template) -> str:
-    """Substitute components into Sheets URL Template.
-
-    Args:
-        template (Template): Template to substitute into.
-
-    Returns:
-        str: Substituted URL.
-
-    """
-    subbed_path: str = template.substitute(
-        path=sheets_url_path,
-        sheet_id=sheet_id,
-        gid=weapon_combt_scaling_gid,
-    )
-    return general_schemas.ParsedURL.from_base_and_path(
-        base_url=sheets_url_base,
-        path=subbed_path,
-    ).url
-
-
-_find_title_url = _url_from_template(find_title_url_template)
-_csv_export_url = _url_from_template(csv_export_url_template)
 
 
 @dataclass(frozen=True)
@@ -102,13 +67,18 @@ class CurrentMossyCSV:
             for file in mossy_csv_dir.iterdir()
             if d2_project_validators.str_matches_pattern(
                 value=file.name,
-                pattern=d2_project_validators.mossy_csv_filename_pattern.pattern,
+                pattern=(
+                    d2_project_validators.mossy_csv_filename_pattern.pattern
+                ),
             )
         ]
+
         if len(candidates) == 1:
             return cls(candidates[0])
+
         if len(candidates) == 0:
             return cls(None)
+
         _logger.error("Too many candidates: %s", candidates)
         raise FileExistsError
 
@@ -124,10 +94,12 @@ class CurrentMossyCSV:
 
         """
         target_path: Path | None = None
+
         find_title_response: requests.Response = requests.get(
-            _find_title_url,
+            d2_project_config.settings.mossy_find_title_url,
             timeout=5,
         )
+
         title_tag = BeautifulSoup(
             find_title_response.text,
             "html.parser",
@@ -135,6 +107,7 @@ class CurrentMossyCSV:
 
         if title_tag is None:
             _logger.error("No 'title' tag found in Sheets HTML.")
+
             raise ValueError
 
         ver_pattern: str = r"^v[1-9]\d*(\.[1-9]\d*)*$"
@@ -151,23 +124,31 @@ class CurrentMossyCSV:
                 "Title contains too many version-like strings: %s",
                 versions,
             )
+
             raise ValueError
 
         latest_ver: str = versions[0]
         if self.current_ver != latest_ver or force_update:
-            tmp = None
-            tmp_path: str | None = None
+            tmp: IO[bytes] | None = None  # Safe initialisation
+            tmp_path: str | None = None  # Safe initialisation
+            csv_export_url: str = (
+                d2_project_config.settings.mossy_csv_export_url
+            )
+
             response = requests.get(
-                _csv_export_url,
+                csv_export_url,
                 timeout=5,
             )
+
             if not response.ok:
                 _logger.error(
                     "Connection to '%s' failed. Error: %s",
-                    _csv_export_url,
+                    csv_export_url,
                     response.status_code,
                 )
+
                 raise ConnectionError
+
             try:
                 with tempfile.NamedTemporaryFile(
                     mode="wb",
@@ -180,6 +161,7 @@ class CurrentMossyCSV:
                     "mossy_csv_" + latest_ver + ".csv"
                 )
                 shutil.move(tmp_path, str(target_path))
+
             finally:
                 if tmp_path is not None and Path(tmp_path).exists():
                     Path(tmp_path).unlink()
