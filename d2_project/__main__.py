@@ -26,5 +26,5 @@ if mf_loc_data.remote_mf_name != (
 ):
     installed_mf_data.update_manifest(mf_loc_data)
 
-if d2_project_config.settings.force_update:
+elif d2_project_config.settings.force_update:
     installed_mf_data.update_manifest(mf_loc_data, force_update=True)
