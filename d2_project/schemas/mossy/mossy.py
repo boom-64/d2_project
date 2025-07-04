@@ -7,6 +7,7 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from string import Template
 from typing import TYPE_CHECKING
 
 import requests
@@ -18,6 +19,27 @@ if TYPE_CHECKING:
     from logging import Logger
 
 _logger: Logger = d2_project_logger.get_logger(__name__)
+
+sheet_id = "1b57Hb8m1L3daFfUckQQqvvN6VOpD03KEssvQLMFpC5I"
+weapon_combt_scaling_gid = "282634418"
+sheets_url_base = "https://docs.google.com"
+sheets_url_path = "/spreadsheets/d/"
+find_title_url_template = Template("${base}${path}${sheet_id}/edit?gid=${gid}")
+csv_export_url_template = Template(
+    "${base}${path}${sheet_id}/export?format=csv&gid=${gid}",
+)
+find_title_url = find_title_url_template.substitute(
+    base=sheets_url_base,
+    path=sheets_url_path,
+    sheet_id=sheet_id,
+    gid=weapon_combt_scaling_gid,
+)
+csv_export_url = csv_export_url_template.substitute(
+    base=sheets_url_base,
+    path=sheets_url_path,
+    sheet_id=sheet_id,
+    gid=weapon_combt_scaling_gid,
+)
 
 
 @dataclass(frozen=True)
@@ -87,7 +109,7 @@ class CurrentMossyCSV:
         """
         target_path: Path | None = None
         find_title_response: requests.Response = requests.get(
-            "https://docs.google.com/spreadsheets/d/1b57Hb8m1L3daFfUckQQqvvN6VOpD03KEssvQLMFpC5I/edit?gid=1386975095",
+            find_title_url,
             timeout=5,
         )
         title_tag = BeautifulSoup(
@@ -120,8 +142,7 @@ class CurrentMossyCSV:
             tmp = None
             tmp_path: str | None = None
             response = requests.get(
-                csv_export_url
-                := "https://docs.google.com/spreadsheets/d/1b57Hb8m1L3daFfUckQQqvvN6VOpD03KEssvQLMFpC5I/export?format=csv&gid=282634418",
+                csv_export_url,
                 timeout=5,
             )
             if not response.ok:
