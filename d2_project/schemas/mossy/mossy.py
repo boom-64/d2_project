@@ -14,6 +14,8 @@ import requests
 from bs4 import BeautifulSoup
 
 import d2_project.core.logger as d2_project_logger
+import d2_project.core.validators as d2_project_validators
+import d2_project.schemas.general as general_schemas
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -24,22 +26,36 @@ sheet_id = "1b57Hb8m1L3daFfUckQQqvvN6VOpD03KEssvQLMFpC5I"
 weapon_combt_scaling_gid = "282634418"
 sheets_url_base = "https://docs.google.com"
 sheets_url_path = "/spreadsheets/d/"
-find_title_url_template = Template("${base}${path}${sheet_id}/edit?gid=${gid}")
+
+find_title_url_template = Template("${path}${sheet_id}/edit?gid=${gid}")
 csv_export_url_template = Template(
-    "${base}${path}${sheet_id}/export?format=csv&gid=${gid}",
+    "${path}${sheet_id}/export?format=csv&gid=${gid}",
 )
-find_title_url = find_title_url_template.substitute(
-    base=sheets_url_base,
-    path=sheets_url_path,
-    sheet_id=sheet_id,
-    gid=weapon_combt_scaling_gid,
-)
-csv_export_url = csv_export_url_template.substitute(
-    base=sheets_url_base,
-    path=sheets_url_path,
-    sheet_id=sheet_id,
-    gid=weapon_combt_scaling_gid,
-)
+
+
+def _url_from_template(template: Template) -> str:
+    """Substitute components into Sheets URL Template.
+
+    Args:
+        template (Template): Template to substitute into.
+
+    Returns:
+        str: Substituted URL.
+
+    """
+    subbed_path: str = template.substitute(
+        path=sheets_url_path,
+        sheet_id=sheet_id,
+        gid=weapon_combt_scaling_gid,
+    )
+    return general_schemas.ParsedURL.from_base_and_path(
+        base_url=sheets_url_base,
+        path=subbed_path,
+    ).url
+
+
+_find_title_url = _url_from_template(find_title_url_template)
+_csv_export_url = _url_from_template(csv_export_url_template)
 
 
 @dataclass(frozen=True)
@@ -84,9 +100,9 @@ class CurrentMossyCSV:
         candidates: list[Path] = [
             file
             for file in mossy_csv_dir.iterdir()
-            if re.fullmatch(
-                r"^mossy_csv_v[1-9]\d*(\.[1-9]\d*)*\.csv$",
-                file.name,
+            if d2_project_validators.str_matches_pattern(
+                value=file.name,
+                pattern=d2_project_validators.mossy_csv_filename_pattern.pattern,
             )
         ]
         if len(candidates) == 1:
@@ -109,7 +125,7 @@ class CurrentMossyCSV:
         """
         target_path: Path | None = None
         find_title_response: requests.Response = requests.get(
-            find_title_url,
+            _find_title_url,
             timeout=5,
         )
         title_tag = BeautifulSoup(
@@ -142,13 +158,13 @@ class CurrentMossyCSV:
             tmp = None
             tmp_path: str | None = None
             response = requests.get(
-                csv_export_url,
+                _csv_export_url,
                 timeout=5,
             )
             if not response.ok:
                 _logger.error(
                     "Connection to '%s' failed. Error: %s",
-                    csv_export_url,
+                    _csv_export_url,
                     response.status_code,
                 )
                 raise ConnectionError

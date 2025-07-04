@@ -59,6 +59,11 @@ toml_needs_triple_quotes_pattern: ComparePattern = ComparePattern(
     pattern_for="TOML triple-quotable string",
 )
 
+mossy_csv_filename_pattern: ComparePattern = ComparePattern(
+    pattern=r"^mossy_csv_v[1-9]\d*(\.[1-9]\d*)*\.csv$",
+    pattern_for="Mossy CSV filename",
+)
+
 
 # ==== Functions ====
 def expected_entry_count(
@@ -115,9 +120,27 @@ def str_matches_pattern(
     *,
     value: str,
     pattern: str,
+) -> bool:
+    """Validate string-pattern match.
+
+    Args:
+        value (str): Value to check.
+        pattern (str): Pattern to check against.
+
+    Returns:
+        bool: Returns True if match success.
+
+    """
+    return bool(re.fullmatch(pattern, value))
+
+
+def assert_str_matches_pattern(
+    *,
+    value: str,
+    pattern: str,
     pattern_for: str,
     log_func: Callable[..., None] | None = None,
-) -> bool:
+) -> None:
     """Validate string-pattern match.
 
     Args:
@@ -134,31 +157,34 @@ def str_matches_pattern(
         d2_project_errors.PatternMismatchError: If pattern match fails
 
     """
-    if re.fullmatch(pattern, value):
-        return True
-
-    if log_func is not None:
-        log_func(
-            "Value %s not a valid %s: Expected pattern: %s.",
-            value,
-            pattern,
-            pattern_for,
+    str_matches: bool = str_matches_pattern(value=value, pattern=pattern)
+    if not str_matches:
+        if log_func is not None:
+            log_func(
+                "Value %s not a valid %s: Expected pattern: %s.",
+                value,
+                pattern,
+                pattern_for,
+            )
+        raise d2_project_errors.PatternMismatchError(
+            value=value,
+            pattern=pattern,
+            pattern_for=pattern_for,
         )
-    raise d2_project_errors.PatternMismatchError(
-        value=value,
-        pattern=pattern,
-        pattern_for=pattern_for,
-    )
 
 
-def str_is_valid_suffix(*, value: str, log_func: Callable[..., None]) -> bool:
+def assert_str_is_valid_suffix(
+    *,
+    value: str,
+    log_func: Callable[..., None],
+) -> None:
     """Simplified pattern call for suffix to avoid code dupe.
 
     Returns:
         bool: True if pattern matched, else custom error raised.
 
     """
-    return str_matches_pattern(
+    assert_str_matches_pattern(
         value=value,
         pattern=r"\.[A-Za-z0-9._-]+",
         pattern_for="file suffix",

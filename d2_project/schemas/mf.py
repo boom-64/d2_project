@@ -12,7 +12,6 @@ import langcodes
 
 # ==== Local Modules ====
 import d2_project.config.config as d2_project_config
-import d2_project.core.errors as d2_project_errors
 import d2_project.core.logger as d2_project_logger
 import d2_project.core.utils.general as general_utils
 import d2_project.core.utils.mf as mf_utils
@@ -187,7 +186,7 @@ class ManifestLocationData(BungieResponseData):
         d2_project_config.sanity.check_remote_mf_dir(
             remote_path=self.remote_mf_path,
         )
-        d2_project_validators.str_matches_pattern(
+        d2_project_validators.assert_str_matches_pattern(
             value=self.remote_mf_name,
             pattern=d2_project_config.settings.expected_mf_name_regex,
             pattern_for="manifest file",
@@ -342,15 +341,10 @@ class InstalledManifestData:
 
         """
         if self.installed_mf_path and self.installed_mf_path.name:
-            try:
-                return d2_project_validators.str_matches_pattern(
-                    value=self.installed_mf_path.name,
-                    pattern=d2_project_config.settings.expected_mf_name_regex,
-                    pattern_for="(expected) manifest name",
-                    log_func=_logger.exception,
-                )
-            except d2_project_errors.PatternMismatchError:
-                return False
+            return d2_project_validators.str_matches_pattern(
+                value=self.installed_mf_path.name,
+                pattern=d2_project_config.settings.expected_mf_name_regex,
+            )
         return None
 
     @property
@@ -373,7 +367,7 @@ class InstalledManifestData:
         elif self.installed_mf_path:
             expected_checksum_str = self.installed_mf_path.stem[-32:]
 
-            d2_project_validators.str_matches_pattern(
+            d2_project_validators.assert_str_matches_pattern(
                 value=expected_checksum_str,
                 pattern=d2_project_validators.lc_checksum_pattern.pattern,
                 pattern_for=d2_project_validators.lc_checksum_pattern.pattern_for,

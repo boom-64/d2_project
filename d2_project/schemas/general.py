@@ -53,7 +53,7 @@ class MD5Checksum:
         lc_val = self.val.lower()
 
         if not self.from_calc:
-            d2_project_validators.str_matches_pattern(
+            d2_project_validators.assert_str_matches_pattern(
                 value=lc_val,
                 pattern=d2_project_validators.lc_checksum_pattern.pattern,
                 pattern_for=d2_project_validators.lc_checksum_pattern.pattern_for,

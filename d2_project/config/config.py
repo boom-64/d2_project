@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 import toml
 
 # ==== Local Module Imports ====
-import d2_project.core.errors as d2_project_errors
 import d2_project.core.logger as d2_project_logger
 import d2_project.core.validators as d2_project_validators
 
@@ -136,18 +135,10 @@ class ConfigSuperclass:
             bool: Whether or not the string can be used as a bare key.
 
         """
-        try:
-            toml_bare_key_pattern: d2_project_validators.ComparePattern = (
-                d2_project_validators.toml_bare_key_pattern
-            )
-            return d2_project_validators.str_matches_pattern(
-                value=s,
-                pattern=toml_bare_key_pattern.pattern,
-                pattern_for=toml_bare_key_pattern.pattern_for,
-                log_func=None,
-            )
-        except d2_project_errors.PatternMismatchError:
-            return False
+        return d2_project_validators.str_matches_pattern(
+            value=s,
+            pattern=d2_project_validators.toml_bare_key_pattern.pattern,
+        )
 
     def _toml_serialise_string_value(self, string_value: str) -> str:
         """Serialise string for use in TOML file.
@@ -163,15 +154,10 @@ class ConfigSuperclass:
             d2_project_validators.toml_needs_triple_quotes_pattern
         )
 
-        try:
-            d2_project_validators.str_matches_pattern(
-                value=string_value,
-                pattern=needs_triple_quotes_pattern.pattern,
-                pattern_for=needs_triple_quotes_pattern.pattern_for,
-                log_func=None,
-            )
-
-        except d2_project_errors.PatternMismatchError:
+        if not d2_project_validators.str_matches_pattern(
+            value=string_value,
+            pattern=needs_triple_quotes_pattern.pattern,
+        ):
             return f'"{string_value}"'
 
         escaped = string_value.replace('"""', '\\"""')
@@ -324,7 +310,7 @@ class Sanity(ConfigSuperclass):
     # ==== Post-Initialisation ====
     def __post_init__(self) -> None:
         """Post-initialisation."""
-        d2_project_validators.str_matches_pattern(
+        d2_project_validators.assert_str_matches_pattern(
             value=self.expected_remote_lang_dir,
             pattern=d2_project_validators.url_path_pattern.pattern,
             pattern_for=d2_project_validators.url_path_pattern.pattern_for,
@@ -500,7 +486,7 @@ class Settings(ConfigSuperclass):  # pylint: disable=too-many-instance-attribute
     def __post_init__(self) -> None:
         """Post-initialisation."""
         for suffix in (self.mf_extension, self.mf_bak_ext):
-            d2_project_validators.str_is_valid_suffix(
+            d2_project_validators.assert_str_is_valid_suffix(
                 value=suffix,
                 log_func=_logger.exception,
             )
